@@ -20,20 +20,35 @@ export default function CalceleveDashboard() {
   const [publishing, setPublishing] = useState(false);
   const [publishStatus, setPublishStatus] = useState<string | null>(null);
 
+  // Reload latest from Blob (source of truth)
+  const reloadLatestFromBlob = async () => {
+    try {
+      const snapshot = await loadLatestSnapshot();
+      if (snapshot) {
+        setData(snapshot.data);
+        setCargaInfo({ 
+          nome: snapshot.sourceFileName || "Versão Pública", 
+          data: snapshot.publishedAt 
+        });
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Erro ao carregar latest:", err);
+      return false;
+    }
+  };
+
   // Load latest published snapshot on mount
   useEffect(() => {
     const loadPublic = async () => {
       setLoading(true);
       try {
-        const snapshot = await loadLatestSnapshot();
-        if (snapshot) {
-          setData(snapshot.data);
-          setCargaInfo({ 
-            nome: snapshot.sourceFileName || "Versão Pública", 
-            data: snapshot.publishedAt 
-          });
-        } else {
-          // Fallback to local storage
+        // Try to load from Blob (source of truth)
+        const loaded = await reloadLatestFromBlob();
+        
+        if (!loaded) {
+          // Fallback to local storage only if Blob is empty
           const activeCargaId = await storage.getActiveBatchId();
           if (activeCargaId) {
             const batch = await storage.loadBatch(activeCargaId);
@@ -55,21 +70,19 @@ export default function CalceleveDashboard() {
   const handleReload = async () => {
     setLoading(true);
     setError(null);
+    setPublishStatus(null);
+    
     try {
-      const snapshot = await loadLatestSnapshot();
-      if (snapshot) {
-        setData(snapshot.data);
-        setCargaInfo({ 
-          nome: snapshot.sourceFileName || "Versão Pública", 
-          data: snapshot.publishedAt 
-        });
-        setPublishStatus("✅ Atualização recarregada com sucesso");
+      const loaded = await reloadLatestFromBlob();
+      if (loaded) {
+        setPublishStatus("✅ Dashboard sincronizado com a última versão");
         setTimeout(() => setPublishStatus(null), 3000);
       } else {
         setError("Nenhuma atualização publicada ainda.");
       }
     } catch (err) {
       setError("Erro ao recarregar última versão");
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -128,16 +141,25 @@ export default function CalceleveDashboard() {
       const result = await publishSnapshot(snapshot, adminToken);
 
       if (result.success) {
-        setPublishStatus("✅ Atualização publicada! Todos verão esta versão.");
-        setCargaInfo({ 
-          nome: cargaInfo?.nome || "Publicado", 
-          data: result.publishedAt || snapshot.publishedAt 
-        });
+        setPublishStatus("✅ Atualização publicada! Sincronizando...");
+        
+        // Force reload from Blob to ensure UI reflects latest
+        setTimeout(async () => {
+          const loaded = await reloadLatestFromBlob();
+          if (loaded) {
+            setPublishStatus("✅ Todos verão esta versão agora");
+            setTimeout(() => setPublishStatus(null), 3000);
+          } else {
+            setPublishStatus("⚠️ Publicado mas erro ao sincronizar dashboard");
+            setTimeout(() => setPublishStatus(null), 3000);
+          }
+        }, 500); // pequeno delay para Blob propagar
       } else {
         setPublishStatus(`❌ ${result.error}`);
       }
     } catch (err) {
       setPublishStatus("❌ Erro ao publicar");
+      console.error(err);
     } finally {
       setPublishing(false);
     }
@@ -148,7 +170,7 @@ export default function CalceleveDashboard() {
       
       {/* Header with Load Info */}
       {cargaInfo && (
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-4xl p-4 border border-blue-200 flex justify-between items-center">
+        <div className="bg-linear-to-r from-blue-50 to-blue-100 rounded-4xl p-4 border border-blue-200 flex justify-between items-center">
           <p className="text-sm text-blue-900">
             <span className="font-bold">📊 Última atualização:</span> {new Date(cargaInfo.data).toLocaleString("pt-BR")} — <span className="italic">{cargaInfo.nome}</span>
           </p>
@@ -164,9 +186,12 @@ export default function CalceleveDashboard() {
       )}
 
       {!cargaInfo && !loading && (
-        <div className="bg-yellow-50 rounded-4xl p-4 border border-yellow-200 text-center">
-          <p className="text-sm text-yellow-900">
-            Nenhuma atualização publicada ainda. Faça upload do CSV para começar.
+        <div className="bg-yellow-50 rounded-4xl p-6 border border-yellow-200 text-center space-y-3">
+          <p className="text-sm text-yellow-900 font-semibold">
+            📭 Nenhuma atualização publicada ainda.
+          </p>
+          <p className="text-xs text-yellow-800">
+            Faça upload do CSV abaixo para começar.
           </p>
         </div>
       )}

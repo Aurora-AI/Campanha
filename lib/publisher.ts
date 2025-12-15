@@ -35,6 +35,7 @@ export async function publishSnapshot(
       publishedAt: result.publishedAt,
     };
   } catch (error) {
+    console.error("Erro ao publicar snapshot:", error);
     return {
       success: false,
       error: "Erro de rede ao publicar snapshot",
