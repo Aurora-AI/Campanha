@@ -2,38 +2,19 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains",
-  subsets: ["latin"],
-});
+const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["latin"] });
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+const jetbrainsMono = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Aurora Campaign Report",
-  description: "Commercial Performance Report Q4",
+  title: "Calceleve | Aceleração 2025",
+  description: "Painel de Performance Comercial",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body
-        className={`${playfair.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased bg-white text-gray-950`}
-      >
-        {children}
-      </body>
+    <html lang="pt-BR" className={`${playfair.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="bg-white text-gray-950 antialiased">{children}</body>
     </html>
   );
 }

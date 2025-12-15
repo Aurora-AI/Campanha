@@ -1,40 +1,55 @@
 import Papa from "papaparse";
 
-export interface StoreMetric {
-  name: string;
-  group: string;
-  total: number;
-  approved: number;
-  rejected: number;
-  analyzing: number;
-  pending: number;
-  // Specific OS flags
+// --- TIPOS ---
+export type SituationFlags = {
   is_aprovado: number;
   is_reprovado: number;
   is_cancelado: number;
   is_em_analise: number;
   is_pendente: number;
+  is_status_desconhecido: number;
+};
+
+export interface StoreMetric {
+  name: string;
+  group: string; // "Grupo 1", "Grupo 2", "Grupo 3"
+  total: number;
+  approved: number;
+  rejected: number;
+  analyzing: number;
+  pending: number;
+  canceled: number;
+  flags: SituationFlags;
 }
 
 export interface GroupMetric {
+  id: string;
   name: string;
+  goal: number;
+  approved: number;
+  stores: StoreMetric[];
+  metGoal: boolean;
+  missing: number;
+}
+
+export interface DashboardMetrics {
   total: number;
   approved: number;
-  stores: string[];
+  rejected: number;
+  analyzing: number;
+  pending: number;
+  canceled: number;
+  stores: Record<string, StoreMetric>;
+  groups: Record<string, GroupMetric>; // Nova estrutura por grupo
+  dailyEvolution: { date: string; approved: number }[];
 }
 
 export interface DashboardData {
   raw: string[][];
-  metrics: {
-    total: number;
-    approved: number;
-    stores: Record<string, StoreMetric>;
-    groups: Record<string, GroupMetric>;
-    dailyEvolution: { date: string, approved: number }[];
-  };
+  metrics: DashboardMetrics;
 }
 
-// OS: CNPJ Map - Fixed
+// --- CONSTANTES DE NEGÓCIO ---
 const CNPJ_MAP: Record<string, string> = {
   "07.316.252/0011-45": "LOJA 16 Cerro Azul - Centro",
   "07.316.252/0001-73": "LOJA 06 Rio Branco do Sul - Centro",
@@ -59,137 +74,164 @@ const CNPJ_MAP: Record<string, string> = {
   "07.316.252/0002-54": "LOJA 08 Campina Grande do Sul - JD Paulista",
 };
 
-// Helper to clean date strings "dd/mm/yyyy hh:mm:ss" -> "dd/mm/yyyy"
-const cleanDate = (val: string) => {
-  if (!val || typeof val !== 'string') return "";
-  return val.split(" ")[0]; // Keep only date part
-};
+// Definição dos Grupos (Lógica Fixa)
+const GROUP_DEFINITIONS = [
+  {
+    id: "G1",
+    name: "Grupo 1 - Alto Potencial",
+    goal: 20,
+    storeNumbers: ["12", "15", "11"]
+  },
+  {
+    id: "G2",
+    name: "Grupo 2 - Médio Potencial",
+    goal: 12,
+    storeNumbers: ["21", "20", "04", "19", "05", "07", "13", "03", "10"]
+  },
+  {
+    id: "G3",
+    name: "Grupo 3 - Em Desenvolvimento",
+    goal: 6,
+    storeNumbers: ["01", "09", "17", "02", "06", "14", "08", "18", "16"]
+  }
+];
 
-const normalizeSituation = (sit: string) => {
-  const s = sit?.trim();
-  // Binary flags per OS
-  const res = {
+// --- HELPERS ---
+const cleanDate = (val: string) => val ? val.split(" ")[0] : "";
+
+const normalizeSituation = (sit: string): SituationFlags => {
+  const s = (sit ?? "").trim();
+  const flags = {
     is_aprovado: s === "Aprovado" ? 1 : 0,
     is_reprovado: s === "Reprovado" ? 1 : 0,
     is_cancelado: s === "Cancelado" ? 1 : 0,
     is_em_analise: s === "Em análise" ? 1 : 0,
     is_pendente: s === "Pendente" ? 1 : 0,
-    is_status_desconhecido: 0
+    is_status_desconhecido: 0,
   };
-  
-  if (!res.is_aprovado && !res.is_reprovado && !res.is_cancelado && !res.is_em_analise && !res.is_pendente) {
-    res.is_status_desconhecido = 1;
-  }
-  
-  return res;
+  if (!Object.values(flags).some(v => v === 1)) flags.is_status_desconhecido = 1;
+  return flags;
 };
 
-export const processCSV = (file: File): Promise<DashboardData> => {
-  return new Promise((resolve, reject) => {
+const getStoreGroup = (storeName: string) => {
+  for (const group of GROUP_DEFINITIONS) {
+    // Verifica se o número da loja está no nome (ex: "LOJA 12" contém "12")
+    // Usamos regex para garantir que "LOJA 1" não dê match em "LOJA 12"
+    for (const num of group.storeNumbers) {
+      if (storeName.includes(`LOJA ${num} `)) return group;
+    }
+  }
+  return null;
+};
+
+// --- PROCESSAMENTO ---
+export const processCSV = (file: File): Promise<DashboardData> =>
+  new Promise((resolve, reject) => {
     Papa.parse(file, {
       encoding: "UTF-8",
+      delimiter: ";",
       skipEmptyLines: true,
       complete: (results) => {
-        // OS Rule: Ignorar as 4 primeiras linhas. A linha 5 contém os cabeçalhos.
-        
         const allRows = results.data as string[][];
-        
-        if (allRows.length < 5) {
-          reject("Arquivo inválido: Menos de 5 linhas.");
-          return;
-        }
+        if (allRows.length < 6) return reject("Arquivo inválido (linhas insuficientes).");
 
-        // Line 5 (index 4) is header
-        const headerRow = allRows[4].map((h: string) => h.trim());
-        const dataRows = allRows.slice(5) as string[][];
+        const headerRow = (allRows[4] ?? []).map((h) => (h ?? "").trim());
+        const dataRows = allRows.slice(5);
 
         const stores: Record<string, StoreMetric> = {};
-        const dailyEvolution: Record<string, { date: string, approved: number }> = {};
-        
-        // Metrics totals
-        let totalRecords = 0;
-        let totalApproved = 0;
+        const dailyEvolution: Record<string, { date: string; approved: number }> = {};
+        const groups: Record<string, GroupMetric> = {};
 
-        // Process rows
-        dataRows.forEach((row: string[]) => {
-            // Map row to header
-            const rowObj: Record<string, string> = {};
-            headerRow.forEach((key: string, index: number) => {
-                rowObj[key] = row[index];
-            });
-
-            // ETAPA 3: Tratamento de Datas
-            const dataEntrada = rowObj["Data de entrada"] ? cleanDate(rowObj["Data de entrada"]) : "";
-            // const dataFinalizada = rowObj["Data Finalizada"] ? cleanDate(rowObj["Data Finalizada"]) : "";
-
-            // ETAPA 4: Mapeamento de Lojas
-            const cnpj = rowObj["CNPJ"]?.trim();
-            const lojaNome = CNPJ_MAP[cnpj] || "DESCONHECIDA";
-
-            // ETAPA 5: Normalização Situação
-            const situacao = rowObj["Situação"];
-            const flags = normalizeSituation(situacao);
-
-            // Populate Metric Aggregations
-            totalRecords++;
-            if (flags.is_aprovado) totalApproved++;
-
-            // Initializing Store Entry
-            if (!stores[lojaNome]) {
-                stores[lojaNome] = {
-                    name: lojaNome,
-                    group: "GERAL", // Placeholder as mapping is missing in OS text
-                    total: 0,
-                    approved: 0,
-                    rejected: 0,
-                    analyzing: 0,
-                    pending: 0,
-                    is_aprovado: 0,
-                    is_reprovado: 0,
-                    is_cancelado: 0,
-                    is_em_analise: 0,
-                    is_pendente: 0
-                };
-            }
-
-            // Aggregating Store Data
-            stores[lojaNome].total++;
-            stores[lojaNome].approved += flags.is_aprovado;
-            stores[lojaNome].rejected += flags.is_reprovado;
-            stores[lojaNome].analyzing += flags.is_em_analise;
-            stores[lojaNome].pending += flags.is_pendente;
-            
-            stores[lojaNome].is_aprovado += flags.is_aprovado;
-            stores[lojaNome].is_reprovado += flags.is_reprovado;
-            stores[lojaNome].is_cancelado += flags.is_cancelado;
-            stores[lojaNome].is_em_analise += flags.is_em_analise;
-            stores[lojaNome].is_pendente += flags.is_pendente;
-
-            // Daily Evolution (by Entry Date)
-            if (dataEntrada) {
-                if (!dailyEvolution[dataEntrada]) {
-                    dailyEvolution[dataEntrada] = { date: dataEntrada, approved: 0 };
-                }
-                dailyEvolution[dataEntrada].approved += flags.is_aprovado;
-            }
+        // Inicializa Grupos
+        GROUP_DEFINITIONS.forEach(g => {
+          groups[g.id] = {
+            id: g.id,
+            name: g.name,
+            goal: g.goal,
+            approved: 0,
+            stores: [],
+            metGoal: false,
+            missing: g.goal
+          };
         });
 
-        const dashboardData: DashboardData = {
-            raw: dataRows,
-            metrics: {
-                total: totalRecords,
-                approved: totalApproved,
-                stores,
-                groups: {}, // Logic for groups requires map
-                dailyEvolution: Object.values(dailyEvolution).sort((a,b) => a.date.localeCompare(b.date))
-            }
-        };
+        let total = 0, approved = 0, rejected = 0, analyzing = 0, pending = 0, canceled = 0;
 
-        resolve(dashboardData);
+        for (const row of dataRows) {
+          const rowObj: Record<string, string> = {};
+          headerRow.forEach((key, idx) => { rowObj[key] = row[idx] ?? ""; });
+
+          const dataEntrada = cleanDate(rowObj["Data de entrada"]);
+          const cnpj = (rowObj["CNPJ"] ?? "").trim();
+          const lojaNome = CNPJ_MAP[cnpj] || `DESCONHECIDA (${cnpj})`;
+          const flags = normalizeSituation(rowObj["Situação"]);
+          
+          // Agrega totais
+          total++;
+          approved += flags.is_aprovado;
+          rejected += flags.is_reprovado;
+          analyzing += flags.is_em_analise;
+          pending += flags.is_pendente;
+          canceled += flags.is_cancelado;
+
+          // Agrega por Loja
+          const groupDef = getStoreGroup(lojaNome);
+          const groupId = groupDef ? groupDef.id : "OUTROS";
+
+          if (!stores[lojaNome]) {
+            stores[lojaNome] = {
+              name: lojaNome,
+              group: groupId,
+              total: 0,
+              approved: 0,
+              rejected: 0,
+              analyzing: 0,
+              pending: 0,
+              canceled: 0,
+              flags: { is_aprovado: 0, is_reprovado: 0, is_cancelado: 0, is_em_analise: 0, is_pendente: 0, is_status_desconhecido: 0 }
+            };
+          }
+          const s = stores[lojaNome];
+          s.total++;
+          s.approved += flags.is_aprovado;
+          s.rejected += flags.is_reprovado;
+          s.analyzing += flags.is_em_analise;
+          s.pending += flags.is_pendente;
+          s.canceled += flags.is_cancelado;
+
+          // Evolução Diária
+          if (dataEntrada) {
+            if (!dailyEvolution[dataEntrada]) dailyEvolution[dataEntrada] = { date: dataEntrada, approved: 0 };
+            dailyEvolution[dataEntrada].approved += flags.is_aprovado;
+          }
+        }
+
+        // Consolida Grupos
+        Object.values(stores).forEach(store => {
+          if (groups[store.group]) {
+            groups[store.group].stores.push(store);
+            groups[store.group].approved += store.approved;
+          }
+        });
+
+        // Calcula Metas dos Grupos
+        Object.values(groups).forEach(g => {
+          g.metGoal = g.approved >= g.goal;
+          g.missing = Math.max(0, g.goal - g.approved);
+          // Ordena lojas por aprovados (para o ranking)
+          g.stores.sort((a, b) => b.approved - a.approved);
+        });
+
+        resolve({
+          raw: dataRows,
+          metrics: { 
+            total, approved, rejected, analyzing, pending, canceled, 
+            stores, 
+            groups, 
+            dailyEvolution: Object.values(dailyEvolution).sort((a, b) => a.date.localeCompare(b.date)) 
+          },
+        });
       },
-      error: (err: Error) => {
-        reject(err.message);
-      }
+      error: (err) => reject(err.message),
     });
   });
-};
