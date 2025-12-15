@@ -1,0 +1,48 @@
+.progress-bar-container {
+  width: 100%;
+  height: 0.5rem;
+  background-color: rgb(229, 231, 235);
+  border-radius: 9999px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  width: var(--progress-width, 0%);
+  transition: width 0.3s ease-in-out;
+}
+
+.success {
+  background-color: rgb(34, 197, 94);
+}
+
+.error {
+  background-color: rgb(248, 113, 113);
+}
+
+/* Data attribute selectors for different progress levels */
+[data-progress="0"] { --progress-width: 0%; }
+[data-progress="5"] { --progress-width: 5%; }
+[data-progress="10"] { --progress-width: 10%; }
+[data-progress="15"] { --progress-width: 15%; }
+[data-progress="20"] { --progress-width: 20%; }
+[data-progress="25"] { --progress-width: 25%; }
+[data-progress="30"] { --progress-width: 30%; }
+[data-progress="35"] { --progress-width: 35%; }
+[data-progress="40"] { --progress-width: 40%; }
+[data-progress="45"] { --progress-width: 45%; }
+[data-progress="50"] { --progress-width: 50%; }
+[data-progress="55"] { --progress-width: 55%; }
+[data-progress="60"] { --progress-width: 60%; }
+[data-progress="65"] { --progress-width: 65%; }
+[data-progress="70"] { --progress-width: 70%; }
+[data-progress="75"] { --progress-width: 75%; }
+[data-progress="80"] { --progress-width: 80%; }
+[data-progress="85"] { --progress-width: 85%; }
+[data-progress="90"] { --progress-width: 90%; }
+[data-progress="95"] { --progress-width: 95%; }
+[data-progress="100"] { --progress-width: 100%; }
+

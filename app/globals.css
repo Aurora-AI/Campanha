@@ -18,3 +18,11 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* Progress bar width utility - controlled via CSS variable */
+.progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  width: var(--progress-width, 0%);
+}

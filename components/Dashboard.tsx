@@ -34,7 +34,7 @@ export default function CalceleveDashboard() {
     <section className="w-full space-y-10">
       
       {/* Upload Section */}
-      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 text-center">
+      <div className="bg-white rounded-4xl p-8 shadow-sm border border-gray-100 text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Painel Aceleração 2025</h1>
         <p className="text-gray-500 mb-8">Importe o CSV diário para apuração de metas e grupos.</p>
         
@@ -69,11 +69,11 @@ export default function CalceleveDashboard() {
           {/* 2. Performance por Grupo (O Coração da Campanha) */}
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Apuração por Grupos</h2>
-            <GroupPerformance groups={data.metrics.groups} />
+            <GroupPerformance weeks={data.metrics.weeks} />
           </div>
 
           {/* 3. Evolução */}
-          <div className="bg-white p-6 rounded-[2rem] border border-gray-100">
+          <div className="bg-white p-6 rounded-4xl border border-gray-100">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Evolução Diária de Aprovações</h2>
             <EvolutionChart data={data.metrics.dailyEvolution} />
           </div>
