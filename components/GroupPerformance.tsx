@@ -98,20 +98,19 @@ export default function GroupPerformance({ weeks }: { weeks: Record<string, Week
                 </h4>
                 
                 {!group.metGoal && (
-                  <div className="text-center py-6 bg-white/50 rounded-xl mb-2">
-                    <p className="text-xs text-gray-500 font-medium">
-                      🔒 Top 3 travado até a meta ser batida.
-                    </p>
+                  <div className="mb-4 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                    🔒 PRÊMIOS AINDA NÃO DESBLOQUEADOS — resultados exibidos para reconhecimento.
                   </div>
                 )}
 
                 <div className="space-y-3">
                   {group.stores.map((store, i) => {
-                    const isWinner = group.metGoal && store.eligible && i < 3;
-                    const isBlurred = !group.metGoal && i < 3;
+                    const isTop3 = i < 3;
+                    const isWinner = group.metGoal && store.eligible && isTop3;
+                    const prizesLocked = !group.metGoal && isTop3;
                     const storePercentage = store.pct ? Math.round(store.pct) : 0;
                     return (
-                      <div key={store.name} className={`flex items-center justify-between text-sm p-2 rounded-lg ${store.eligible ? "bg-blue-50/50" : "bg-gray-50/50"} ${isBlurred ? "opacity-50 blur-sm" : ""}`}>
+                      <div key={store.name} className={`flex items-center justify-between text-sm p-2 rounded-lg ${store.eligible ? "bg-blue-50/50" : "bg-gray-50/50"}`}>
                         <div className="flex items-center gap-3 flex-1">
                           <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${isWinner ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
                             {i + 1}
@@ -121,9 +120,13 @@ export default function GroupPerformance({ weeks }: { weeks: Record<string, Week
                               <span className={`font-medium ${isWinner ? "text-gray-900" : "text-gray-600"}`}>
                                 {store.name.replace("LOJA ", "L")}
                               </span>
-                              {store.eligible ? (
+                              {prizesLocked && (
+                                <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Prêmios bloqueados</span>
+                              )}
+                              {!prizesLocked && store.eligible && (
                                 <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Elegível</span>
-                              ) : (
+                              )}
+                              {!prizesLocked && !store.eligible && (
                                 <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Inelegível</span>
                               )}
                             </div>
