@@ -1,23 +1,35 @@
-"use client";
-
-import styles from "./ProgressBar.module.css";
+import React from 'react';
 
 interface ProgressBarProps {
-  progress: number;
-  success: boolean;
+  value: number;
+  max: number;
+  color?: 'green' | 'red' | 'blue' | 'yellow';
 }
 
-export default function ProgressBar({ progress, success }: ProgressBarProps) {
-  // Round progress to nearest 5 for data attribute matching
-  const roundedProgress = Math.min(100, Math.round(progress / 5) * 5);
+const COLOR_MAP = {
+  green: 'bg-green-500',
+  red: 'bg-red-500',
+  blue: 'bg-blue-500',
+  yellow: 'bg-yellow-500',
+};
+
+export default function ProgressBar({ value, max, color = 'blue' }: ProgressBarProps) {
+  const percentage = Math.min(100, Math.max(0, (value / max) * 100));
+  const displayPercentage = Math.round(percentage);
 
   return (
-    <div className={styles["progress-bar-container"]}>
+    <div 
+      className='w-full h-2 bg-gray-100 rounded-full overflow-hidden mt-4'
+      role='progressbar'
+      aria-label={Progresso: %}
+      aria-valuenow={displayPercentage}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
       <div 
-        className={`${styles["progress-bar"]} ${success ? styles["success"] : styles["error"]}`}
-        data-progress={roundedProgress}
+        className={h-full rounded-full transition-all duration-500 ease-out }
+        style={{ width: ${percentage}% }}
       />
     </div>
   );
 }
-

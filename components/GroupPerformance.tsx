@@ -85,8 +85,9 @@ export default function GroupPerformance({ weeks }: { weeks: Record<string, Week
                 
                 {/* Progress Bar */}
                 <ProgressBar 
-                  progress={(group.approved / group.goal) * 100} 
-                  success={group.metGoal}
+                  value={group.approved} 
+                  max={group.goal} 
+                  color={group.metGoal ? "green" : "red"}
                 />
               </div>
 
