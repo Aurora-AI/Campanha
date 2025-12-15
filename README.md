@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dashboard Calceleve - Campanha Aceleração 2025
 
-## Getting Started
+Dashboard de apuração semanal de metas por grupos com publicação via Vercel Blob.
 
-First, run the development server:
+## Features
+
+- ✅ Upload e processamento de CSV diário
+- ✅ Métricas semanais (Seg-Dom) com estágios de campanha
+- ✅ Grupos com metas agregadas e ranking Top 3
+- ✅ Elegibilidade automática (grupo + loja)
+- ✅ **Publicação pública via Vercel Blob**
+- ✅ Sincronização automática entre dispositivos
+- ✅ Persistência IndexedDB + localStorage
+
+## Publicação e Sincronização
+
+Qualquer pessoa com o link **sempre vê a última versão publicada**.
+
+### Como Publicar
+
+1. Acesse `/dashboard`
+2. Faça upload do CSV
+3. Clique em "Publicar versão (Modo Admin)"
+4. Insira o **Token de Publicação** (ADMIN_TOKEN)
+5. Clique em "Publicar Atualização"
+6. Pronto! Todos que acessarem verão esta versão
+
+### Como Visualizar
+
+1. Acesse `/dashboard` em qualquer dispositivo
+2. Dashboard carrega automaticamente a última versão
+3. Clique em "Recarregar" para atualizar
+
+📖 **Documentação completa:** [docs/BLOB_PUBLISH.md](docs/BLOB_PUBLISH.md)
+
+## Configuração
+
+### Environment Variables
+
+Crie `.env.local`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+ADMIN_TOKEN=your_secure_random_token
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Production (Vercel)
 
-## Learn More
+1. Conecte Blob Store "AURORA" ao projeto
+2. Configure env vars: `BLOB_READ_WRITE_TOKEN` e `ADMIN_TOKEN`
+3. Deploy
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Vercel Blob
+- IndexedDB + localStorage
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estrutura
 
-## Deploy on Vercel
+```
+app/
+  api/
+    publish/        # POST - Publica snapshot
+    latest/         # GET - Busca última versão
+  dashboard/
+components/
+  Dashboard.tsx     # Upload + Publicação
+  GroupPerformance.tsx
+  KPICards.tsx
+lib/
+  pipeline.ts       # Processamento CSV
+  publisher.ts      # Client Blob API
+  storage.ts        # IndexedDB wrapper
+  storage/
+    indexedDb.ts    # Robust IndexedDB schema
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
