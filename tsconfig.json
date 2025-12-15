@@ -32,10 +32,14 @@
   ],
   "exclude": [
     "node_modules",
+    "docs",
     "__tests__",
     "**/*.test.ts",
     "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
     "vitest.config.ts",
-    "docs"
+    "**/*.config.ts",
+    "**/*.config.mts"
   ]
 }
