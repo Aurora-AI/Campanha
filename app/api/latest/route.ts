@@ -6,38 +6,32 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    // Verificar se latest.json existe
-    let blobUrl: string;
-    
-    try {
-      const headResult = await head("calceleve/latest.json");
-      blobUrl = headResult.url;
-    } catch (error) {
-      // Blob não existe
-      return new NextResponse(null, { status: 204 });
+    const meta = await head("calceleve/latest.json");
+    if (!meta?.url) {
+      return new NextResponse(null, {
+        status: 204,
+        headers: { "Cache-Control": "no-store" },
+      });
     }
 
-    // Buscar o conteúdo
-    const response = await fetch(blobUrl, {
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return new NextResponse(null, { status: 204 });
+    const res = await fetch(meta.url, { cache: "no-store" });
+    if (!res.ok) {
+      return new NextResponse(null, {
+        status: 204,
+        headers: { "Cache-Control": "no-store" },
+      });
     }
 
-    const snapshot = await response.json();
+    const snapshot = await res.json();
 
     return NextResponse.json(snapshot, {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
     });
-  } catch (error) {
-    console.error("Erro ao buscar latest:", error);
-    return NextResponse.json(
-      { error: "Erro ao carregar última versão" },
-      { status: 500 }
-    );
+  } catch {
+    return new NextResponse(null, {
+      status: 204,
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 }

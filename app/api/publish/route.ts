@@ -1,57 +1,51 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 
-export async function POST(req: NextRequest) {
+export const dynamic = "force-dynamic";
+
+function unauthorized() {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: 401, headers: { "Cache-Control": "no-store" } }
+  );
+}
+
+export async function POST(req: Request) {
   try {
-    // Validar Authorization
-    const authHeader = req.headers.get("authorization");
-    const adminToken = process.env.ADMIN_TOKEN;
+    const auth = req.headers.get("authorization") || "";
+    const expected = `Bearer ${process.env.ADMIN_TOKEN || ""}`;
 
-    if (!adminToken) {
-      return NextResponse.json(
-        { error: "Server misconfigured: ADMIN_TOKEN not set" },
-        { status: 500 }
-      );
+    if (!process.env.ADMIN_TOKEN) {
+      return unauthorized();
+    }
+    if (auth !== expected) {
+      return unauthorized();
     }
 
-    if (!authHeader || authHeader !== `Bearer ${adminToken}`) {
-      return NextResponse.json(
-        { error: "Token inválido. Publicação não autorizada." },
-        { status: 401 }
-      );
-    }
-
-    // Ler body JSON
     const snapshot = await req.json();
 
-    if (!snapshot || typeof snapshot !== "object") {
+    if (!snapshot?.publishedAt || !snapshot?.version || !snapshot?.data) {
       return NextResponse.json(
-        { error: "Snapshot inválido" },
-        { status: 400 }
+        { error: "Invalid snapshot: expected { publishedAt, version, data }" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // Adicionar publishedAt se não existir
-    if (!snapshot.publishedAt) {
-      snapshot.publishedAt = new Date().toISOString();
-    }
-
-    // Publicar no Blob (sempre sobrescreve latest.json)
     const blob = await put("calceleve/latest.json", JSON.stringify(snapshot), {
       access: "public",
       contentType: "application/json",
+      addRandomSuffix: false,
     });
 
-    return NextResponse.json({
-      success: true,
-      url: blob.url,
-      publishedAt: snapshot.publishedAt,
-    });
+    return NextResponse.json(
+      { success: true, url: blob.url },
+      { status: 200, headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
     console.error("Erro ao publicar snapshot:", error);
     return NextResponse.json(
       { error: "Erro ao publicar atualização" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

@@ -4,7 +4,7 @@
 // - Home must render only what comes from GET /api/latest
 // - No calculations, no aggregation, no new business rules
 // - If a needed field is missing in the snapshot, show elegant fallback ("—")
-// - Snapshot minimum expected: publishedAt, optional sourceFileName, optional payload fields
+// - Snapshot minimum expected: publishedAt, version, data (DashboardData), optional sourceFileName
 
 import { useEffect, useState } from "react";
 import Link from "next/link";

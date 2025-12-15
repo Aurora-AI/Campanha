@@ -35,17 +35,13 @@ describe("Publisher Module", () => {
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          success: true,
-          publishedAt: mockSnapshot.publishedAt,
-          url: "https://blob.vercel-storage.com/calceleve/latest.json",
-        }),
+        json: async () => ({ success: true, url: "https://blob.vercel-storage.com/calceleve/latest.json" }),
       });
 
       const result = await publishSnapshot(mockSnapshot, "valid-token");
 
       expect(result.success).toBe(true);
-      expect(result.publishedAt).toBe(mockSnapshot.publishedAt);
+      expect((result as any).url).toContain("calceleve");
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/publish",
         expect.objectContaining({
@@ -54,6 +50,7 @@ describe("Publisher Module", () => {
             "Content-Type": "application/json",
             Authorization: "Bearer valid-token",
           },
+          cache: "no-store",
         })
       );
     });
@@ -157,6 +154,18 @@ describe("Publisher Module", () => {
           cache: "no-store",
         })
       );
+    });
+
+    it("deve retornar null para snapshot inválido (sem data)", async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ version: "1", publishedAt: "2025-01-01T10:00:00Z" }),
+      });
+
+      const result = await loadLatestSnapshot();
+
+      expect(result).toBeNull();
     });
 
     it("deve retornar null em caso de erro", async () => {

@@ -34,19 +34,19 @@ export function toHomeViewModel(snapshot: any): HomeViewModel {
   const sourceFileName: string | undefined = snapshot.sourceFileName;
   const version: string | undefined = snapshot.version;
 
-  // Try to find presentation-friendly fields if they exist in the payload.
+  // Try to find presentation-friendly fields inside the official snapshot data.
   // IMPORTANT: Do not compute or aggregate — only read existing fields.
-  const payload = snapshot.data || snapshot.payload || {};
-  const metrics = payload.metrics || {};
+  const payload = snapshot.data || {};
+  const metrics = (payload as any).metrics || {};
 
   // Leader structure (optional in snapshot)
-  const leader = metrics.leader || payload.leader;
+  const leader = metrics.leader;
   const leaderGroup = leader?.groupName ?? leader?.group ?? undefined;
   const leaderValue = leader?.value ?? leader?.approved ?? undefined;
   const leaderGapToSecond = leader?.gapToSecond ?? leader?.gap ?? undefined;
 
   // Top 3 (optional)
-  const top3Raw: any[] | undefined = metrics.top3 || payload.top3;
+  const top3Raw: any[] | undefined = metrics.top3;
   const top3 = Array.isArray(top3Raw)
     ? top3Raw.map((item) => ({
         group: item?.groupName ?? item?.group,
@@ -55,7 +55,7 @@ export function toHomeViewModel(snapshot: any): HomeViewModel {
     : undefined;
 
   // Chase list (optional)
-  const chaseRaw: any[] | undefined = metrics.chase || payload.chase || metrics.closest || payload.closest;
+  const chaseRaw: any[] | undefined = metrics.chase || metrics.closest;
   const chase = Array.isArray(chaseRaw)
     ? chaseRaw.map((item) => ({
         group: item?.groupName ?? item?.group,
@@ -65,7 +65,7 @@ export function toHomeViewModel(snapshot: any): HomeViewModel {
     : undefined;
 
   // Meta ruler (optional)
-  const metaRulerRaw = metrics.metaRuler || payload.metaRuler;
+  const metaRulerRaw = metrics.metaRuler;
   const metaRuler = metaRulerRaw
     ? {
         goalLabel: metaRulerRaw?.label ?? metaRulerRaw?.goalLabel,

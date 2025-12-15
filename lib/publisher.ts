@@ -1,65 +1,60 @@
-import { DashboardData } from "./pipeline";
+import type { DashboardData } from "./pipeline";
 
-export interface PublicSnapshot {
+export type PublicSnapshot = {
   publishedAt: string;
-  sourceFileName?: string;
   version: string;
+  sourceFileName?: string;
   data: DashboardData;
-}
+};
+
+type PublishResult =
+  | { success: true; url?: string }
+  | { success: false; error: string };
 
 export async function publishSnapshot(
   snapshot: PublicSnapshot,
-  adminToken: string
-): Promise<{ success: boolean; error?: string; publishedAt?: string }> {
+  token: string
+): Promise<PublishResult> {
   try {
-    const response = await fetch("/api/publish", {
+    const res = await fetch("/api/publish", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`,
+        Authorization: `Bearer ${token.trim()}`,
       },
       body: JSON.stringify(snapshot),
+      cache: "no-store",
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return {
-        success: false,
-        error: errorData.error || "Erro desconhecido ao publicar",
-      };
-    }
+    if (res.status === 401) return { success: false, error: "Token inválido" };
+    if (!res.ok) return { success: false, error: "Falha ao publicar" };
 
-    const result = await response.json();
-    return {
-      success: true,
-      publishedAt: result.publishedAt,
-    };
-  } catch (error) {
-    console.error("Erro ao publicar snapshot:", error);
-    return {
-      success: false,
-      error: "Erro de rede ao publicar snapshot",
-    };
+    return { success: true, ...(await res.json()) };
+  } catch {
+    return { success: false, error: "Erro de rede ao publicar" };
   }
 }
 
 export async function loadLatestSnapshot(): Promise<PublicSnapshot | null> {
   try {
-    const response = await fetch("/api/latest", {
-      cache: "no-store",
-    });
+    const res = await fetch("/api/latest", { cache: "no-store" });
+    if (res.status === 204) return null;
+    if (!res.ok) return null;
 
-    if (response.status === 204) {
+    const json = (await res.json()) as unknown;
+
+    if (
+      !json ||
+      typeof json !== "object" ||
+      !("publishedAt" in json) ||
+      !("version" in json) ||
+      !("data" in json)
+    ) {
       return null;
     }
 
-    if (!response.ok) {
-      throw new Error("Erro ao carregar snapshot");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao carregar latest:", error);
+    return json as PublicSnapshot;
+  } catch {
     return null;
   }
 }

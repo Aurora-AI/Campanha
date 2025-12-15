@@ -60,13 +60,13 @@ describe("API Routes", () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.publishedAt).toBe(mockSnapshot.publishedAt);
       expect(put).toHaveBeenCalledWith(
         "calceleve/latest.json",
         expect.any(String),
         expect.objectContaining({
           access: "public",
           contentType: "application/json",
+          addRandomSuffix: false,
         })
       );
     });
@@ -91,7 +91,7 @@ describe("API Routes", () => {
       const data = await response.json();
 
       expect(response.status).toBe(401);
-      expect(data.error).toContain("Token inválido");
+      expect(data.error).toContain("Unauthorized");
     });
 
     it("deve retornar 401 sem Authorization header", async () => {
@@ -113,9 +113,10 @@ describe("API Routes", () => {
       const data = await response.json();
 
       expect(response.status).toBe(401);
+      expect(data.error).toContain("Unauthorized");
     });
 
-    it("deve retornar 500 se ADMIN_TOKEN não estiver configurado", async () => {
+    it("deve retornar 401 se ADMIN_TOKEN não estiver configurado", async () => {
       delete process.env.ADMIN_TOKEN;
 
       const mockSnapshot = {
@@ -136,8 +137,8 @@ describe("API Routes", () => {
       const response = await publishHandler(request);
       const data = await response.json();
 
-      expect(response.status).toBe(500);
-      expect(data.error).toContain("misconfigured");
+      expect(response.status).toBe(401);
+      expect(data.error).toContain("Unauthorized");
 
       process.env.ADMIN_TOKEN = "test-secret-token";
     });
