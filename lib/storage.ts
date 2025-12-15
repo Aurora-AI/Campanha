@@ -1,6 +1,7 @@
 "use client";
 
 import { DashboardData } from "./pipeline";
+import * as idb from "./storage/indexedDb";
 
 export interface LoadBatch {
   carga_id: string; // UUID
@@ -16,30 +17,6 @@ export interface StorageState {
 }
 
 const STORAGE_KEY = "calceleve_dashboard_storage";
-const DB_NAME = "CalceleveDashboard";
-const STORE_NAME = "batches";
-
-let dbInstance: IDBDatabase | null = null;
-
-// Open IndexedDB
-const openDB = async (): Promise<IDBDatabase> => {
-  if (dbInstance) return dbInstance;
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      dbInstance = request.result;
-      resolve(dbInstance);
-    };
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "carga_id" });
-      }
-    };
-  });
-};
 
 // Check IndexedDB availability
 const isIndexedDBAvailable = (): boolean => {
@@ -48,54 +25,6 @@ const isIndexedDBAvailable = (): boolean => {
   } catch {
     return false;
   }
-};
-
-// Save to IndexedDB
-const saveToIndexedDB = async (batch: LoadBatch): Promise<void> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.put(batch);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
-};
-
-// Load from IndexedDB
-const loadFromIndexedDB = async (carga_id: string): Promise<LoadBatch | null> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.get(carga_id);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result || null);
-  });
-};
-
-// Load all batches from IndexedDB
-const loadAllFromIndexedDB = async (): Promise<LoadBatch[]> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result || []);
-  });
-};
-
-// Delete from IndexedDB
-const deleteFromIndexedDB = async (carga_id: string): Promise<void> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.delete(carga_id);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
 };
 
 // Fallback: localStorage
@@ -120,7 +49,14 @@ const loadFromLocalStorage = (): StorageState | null => {
 export const storage = {
   async saveBatch(batch: LoadBatch): Promise<void> {
     if (isIndexedDBAvailable()) {
-      await saveToIndexedDB(batch);
+      try {
+        await idb.putLoad(batch);
+      } catch (error) {
+        console.warn("IndexedDB save failed, falling back to localStorage", error);
+        const state = loadFromLocalStorage() || { batches: {}, carga_ativa_id: null };
+        state.batches[batch.carga_id] = batch;
+        saveToLocalStorage(state);
+      }
     } else {
       const state = loadFromLocalStorage() || { batches: {}, carga_ativa_id: null };
       state.batches[batch.carga_id] = batch;
@@ -130,7 +66,13 @@ export const storage = {
 
   async loadBatch(carga_id: string): Promise<LoadBatch | null> {
     if (isIndexedDBAvailable()) {
-      return loadFromIndexedDB(carga_id);
+      try {
+        return await idb.getLoad(carga_id);
+      } catch (error) {
+        console.warn("IndexedDB load failed, falling back to localStorage", error);
+        const state = loadFromLocalStorage();
+        return state?.batches[carga_id] || null;
+      }
     } else {
       const state = loadFromLocalStorage();
       return state?.batches[carga_id] || null;
@@ -139,7 +81,13 @@ export const storage = {
 
   async loadAllBatches(): Promise<LoadBatch[]> {
     if (isIndexedDBAvailable()) {
-      return loadAllFromIndexedDB();
+      try {
+        return await idb.getAllLoads();
+      } catch (error) {
+        console.warn("IndexedDB loadAll failed, falling back to localStorage", error);
+        const state = loadFromLocalStorage();
+        return state ? Object.values(state.batches) : [];
+      }
     } else {
       const state = loadFromLocalStorage();
       return state ? Object.values(state.batches) : [];
@@ -148,16 +96,14 @@ export const storage = {
 
   async setActiveBatch(carga_id: string | null): Promise<void> {
     if (isIndexedDBAvailable()) {
-      // In IndexedDB, store active ID separately or in a metadata store
-      const db = await openDB();
-      const metaStore = db
-        .transaction(["metadata"], "readwrite")
-        .objectStore("metadata");
-      await new Promise<void>((resolve, reject) => {
-        const request = metaStore.put({ key: "active_id", value: carga_id });
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-      });
+      try {
+        await idb.setKV("active_id", carga_id);
+      } catch (error) {
+        console.warn("IndexedDB setActive failed, falling back to localStorage", error);
+        const state = loadFromLocalStorage() || { batches: {}, carga_ativa_id: null };
+        state.carga_ativa_id = carga_id;
+        saveToLocalStorage(state);
+      }
     } else {
       const state = loadFromLocalStorage() || { batches: {}, carga_ativa_id: null };
       state.carga_ativa_id = carga_id;
@@ -168,15 +114,11 @@ export const storage = {
   async getActiveBatchId(): Promise<string | null> {
     if (isIndexedDBAvailable()) {
       try {
-        const db = await openDB();
-        const metaStore = db.transaction(["metadata"], "readonly").objectStore("metadata");
-        return new Promise((resolve) => {
-          const request = metaStore.get("active_id");
-          request.onsuccess = () => resolve(request.result?.value || null);
-          request.onerror = () => resolve(null);
-        });
-      } catch {
-        return null;
+        return (await idb.getKV<string>("active_id")) || null;
+      } catch (error) {
+        console.warn("IndexedDB getActive failed, falling back to localStorage", error);
+        const state = loadFromLocalStorage();
+        return state?.carga_ativa_id || null;
       }
     } else {
       const state = loadFromLocalStorage();
@@ -186,7 +128,16 @@ export const storage = {
 
   async deleteBatch(carga_id: string): Promise<void> {
     if (isIndexedDBAvailable()) {
-      await deleteFromIndexedDB(carga_id);
+      try {
+        await idb.deleteLoad(carga_id);
+      } catch (error) {
+        console.warn("IndexedDB delete failed, falling back to localStorage", error);
+        const state = loadFromLocalStorage();
+        if (state) {
+          delete state.batches[carga_id];
+          saveToLocalStorage(state);
+        }
+      }
     } else {
       const state = loadFromLocalStorage();
       if (state) {
