@@ -1,16 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UploadCloud, Loader2 } from "lucide-react";
 import { processCSV, DashboardData } from "@/lib/pipeline";
+import { storage, LoadBatch } from "@/lib/storage";
 import KPICards from "./KPICards";
 import EvolutionChart from "./EvolutionChart";
 import GroupPerformance from "./GroupPerformance";
+import { v4 as uuidv4 } from "uuid";
 
 export default function CalceleveDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cargaInfo, setCargaInfo] = useState<{ nome: string; data: string } | null>(null);
+
+  // Load active batch on mount
+  useEffect(() => {
+    const loadActive = async () => {
+      try {
+        const activeCargaId = await storage.getActiveBatchId();
+        if (activeCargaId) {
+          const batch = await storage.loadBatch(activeCargaId);
+          if (batch) {
+            setData(batch.dados_normalizados);
+            setCargaInfo({ nome: batch.arquivo_nome, data: batch.data_carga });
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao carregar carga ativa:", err);
+      }
+    };
+    loadActive();
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -22,7 +44,21 @@ export default function CalceleveDashboard() {
 
     try {
       const result = await processCSV(file);
+      
+      // Create and persist batch
+      const batch: LoadBatch = {
+        carga_id: uuidv4(),
+        data_carga: new Date().toISOString(),
+        tipo_carga: "aprovadas",
+        arquivo_nome: file.name,
+        dados_normalizados: result,
+      };
+      
+      await storage.saveBatch(batch);
+      await storage.setActiveBatch(batch.carga_id);
+      
       setData(result);
+      setCargaInfo({ nome: file.name, data: batch.data_carga });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -33,6 +69,15 @@ export default function CalceleveDashboard() {
   return (
     <section className="w-full space-y-10">
       
+      {/* Header with Load Info */}
+      {cargaInfo && (
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-4xl p-4 border border-blue-200">
+          <p className="text-sm text-blue-900">
+            <span className="font-bold">📊 Última atualização:</span> {new Date(cargaInfo.data).toLocaleString("pt-BR")} — <span className="italic">{cargaInfo.nome}</span>
+          </p>
+        </div>
+      )}
+
       {/* Upload Section */}
       <div className="bg-white rounded-4xl p-8 shadow-sm border border-gray-100 text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Painel Aceleração 2025</h1>
@@ -76,6 +121,18 @@ export default function CalceleveDashboard() {
           <div className="bg-white p-6 rounded-4xl border border-gray-100">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Evolução Diária de Aprovações</h2>
             <EvolutionChart data={data.metrics.dailyEvolution} />
+          </div>
+
+          {/* 4. Como funciona */}
+          <div className="bg-blue-50 rounded-4xl p-6 border border-blue-200">
+            <h3 className="text-lg font-bold text-blue-900 mb-4">ℹ️ Como Funciona</h3>
+            <ul className="space-y-2 text-sm text-blue-800">
+              <li><strong>Meta do Grupo:</strong> soma das metas individuais (G1: 60, G2: 108, G3: 54)</li>
+              <li><strong>Grupo Elegível:</strong> quando a soma de aprovações bate a meta do grupo</li>
+              <li><strong>Loja Elegível:</strong> quando o grupo é elegível E a loja bate sua meta individual</li>
+              <li><strong>Vencedores (Top 3):</strong> apenas lojas elegíveis, ordenadas por % atingimento</li>
+              <li><strong>Zeramento:</strong> metas reiniciam a cada segunda-feira (semana canônica)</li>
+            </ul>
           </div>
           
         </div>

@@ -17,6 +17,7 @@ export type CampaignStage = "aceleracao" | "consolidacao" | "sprint_final";
 export interface StoreMetric {
   name: string;
   group: string;
+  goal: number; // meta individual da loja
   total: number;
   approved: number;
   rejected: number;
@@ -24,16 +25,20 @@ export interface StoreMetric {
   pending: number;
   canceled: number;
   flags: SituationFlags;
+  eligible?: boolean; // loja elegível na semana
+  missingStore?: number; // faltam da loja
+  pct?: number; // % atingimento
 }
 
 export interface GroupMetric {
   id: string;
   name: string;
-  goal: number;
-  approved: number;
+  goal: number; // meta individual
+  groupGoal: number; // meta do grupo (goal * qtd lojas do grupo)
+  approved: number; // soma do grupo na semana
   stores: StoreMetric[];
-  metGoal: boolean;
-  missing: number;
+  metGoal: boolean; // grupo elegível
+  missing: number; // faltam para meta do grupo
 }
 
 export interface WeeklyMetrics {
@@ -183,7 +188,7 @@ export const processCSV = (file: File): Promise<DashboardData> =>
             // Inicializa Grupos na Semana
             GROUP_DEFINITIONS.forEach(g => {
               weeks[weekId].groups[g.id] = {
-                id: g.id, name: g.name, goal: g.goal, approved: 0, stores: [], metGoal: false, missing: g.goal
+                id: g.id, name: g.name, goal: g.goal, groupGoal: g.goal * g.storeNumbers.length, approved: 0, stores: [], metGoal: false, missing: g.goal * g.storeNumbers.length
               };
             });
           }
@@ -201,7 +206,7 @@ export const processCSV = (file: File): Promise<DashboardData> =>
           
           if (!weeks[weekId].stores[lojaNome]) {
             weeks[weekId].stores[lojaNome] = {
-              name: lojaNome, group: groupId, total: 0, approved: 0, rejected: 0, analyzing: 0, pending: 0, canceled: 0, flags: { ...flags }
+              name: lojaNome, group: groupId, goal: groupDef ? groupDef.goal : 0, total: 0, approved: 0, rejected: 0, analyzing: 0, pending: 0, canceled: 0, flags: { ...flags }
             };
           }
           const s = weeks[weekId].stores[lojaNome];
@@ -229,9 +234,25 @@ export const processCSV = (file: File): Promise<DashboardData> =>
           
           // 2. Calcula Metas e Ordena
           Object.values(week.groups).forEach(g => {
-            g.metGoal = g.approved >= g.goal;
-            g.missing = Math.max(0, g.goal - g.approved);
-            g.stores.sort((a, b) => b.approved - a.approved);
+            // Grupo elegível por soma
+            g.metGoal = g.approved >= g.groupGoal;
+            g.missing = Math.max(0, g.groupGoal - g.approved);
+            // Enriquecer lojas com elegibilidade da semana
+            g.stores.forEach(s => {
+              s.missingStore = Math.max(0, g.goal - s.approved);
+              s.pct = g.goal > 0 ? s.approved / g.goal : 0;
+              s.eligible = g.metGoal && s.approved >= g.goal;
+            });
+            // Ranking: apenas elegíveis; ordenar por % atingimento, depois aprovadas, depois nome
+            g.stores.sort((a, b) => {
+              const ea = a.eligible ? 1 : 0; const eb = b.eligible ? 1 : 0;
+              if (eb !== ea) return eb - ea; // elegíveis primeiro
+              const pctDiff = (b.pct ?? 0) - (a.pct ?? 0);
+              if (pctDiff !== 0) return pctDiff;
+              const apprDiff = b.approved - a.approved;
+              if (apprDiff !== 0) return apprDiff;
+              return a.name.localeCompare(b.name);
+            });
           });
         });
 

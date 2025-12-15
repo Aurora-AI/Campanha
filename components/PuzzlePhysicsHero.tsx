@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform, useReducedMotion, easeInOut } from "framer-motion";
 import { useMemo, useRef } from "react";
 
 type Props = {
@@ -33,11 +33,11 @@ export default function PuzzlePhysicsHero({
   const shadowY = useTransform(sy, [-0.5, 0.5], [20, -20]);
 
   const floatAnim = useMemo(() => {
-    if (reducedMotion) return {} as const;
+    if (reducedMotion) return {};
     return {
       y: [0, -8, 0],
-      transition: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-    } as const;
+      transition: { duration: 6, repeat: Infinity, ease: easeInOut },
+    };
   }, [reducedMotion]);
 
   const onMove = (e: React.PointerEvent) => {

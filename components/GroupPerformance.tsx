@@ -80,7 +80,7 @@ export default function GroupPerformance({ weeks }: { weeks: Record<string, Week
                 
                 <div className="flex items-baseline gap-2 mt-4">
                   <span className="text-4xl font-black text-gray-900">{group.approved}</span>
-                  <span className="text-sm font-medium text-gray-500">/ {group.goal}</span>
+                  <span className="text-sm font-medium text-gray-500">/ {group.groupGoal}</span>
                 </div>
                 
                 {/* Progress Bar */}
@@ -107,21 +107,34 @@ export default function GroupPerformance({ weeks }: { weeks: Record<string, Week
 
                 <div className="space-y-3">
                   {group.stores.map((store, i) => {
-                    const isWinner = group.metGoal && i < 3;
+                    const isWinner = group.metGoal && store.eligible && i < 3;
                     const isBlurred = !group.metGoal && i < 3;
+                    const storePercentage = store.pct ? Math.round(store.pct) : 0;
                     return (
-                      <div key={store.name} className={`flex items-center justify-between text-sm ${isBlurred ? "opacity-50 blur-sm" : ""}`}>
-                        <div className="flex items-center gap-3">
+                      <div key={store.name} className={`flex items-center justify-between text-sm p-2 rounded-lg ${store.eligible ? "bg-blue-50/50" : "bg-gray-50/50"} ${isBlurred ? "opacity-50 blur-sm" : ""}`}>
+                        <div className="flex items-center gap-3 flex-1">
                           <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${isWinner ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
                             {i + 1}
                           </span>
-                          <span className={`font-medium ${isWinner ? "text-gray-900" : "text-gray-600"}`}>
-                            {store.name.replace("LOJA ", "L")}
-                          </span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-medium ${isWinner ? "text-gray-900" : "text-gray-600"}`}>
+                                {store.name.replace("LOJA ", "L")}
+                              </span>
+                              {store.eligible ? (
+                                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Elegível</span>
+                              ) : (
+                                <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Inelegível</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-gray-500 mt-0.5">
+                              {store.approved}/{store.goal} ({storePercentage}%)
+                            </div>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">{store.approved}</span>
-                          {isWinner && <Trophy className="w-3 h-3 text-yellow-500" />}
+                          <span className="font-bold text-right">{store.approved}</span>
+                          {isWinner && <Trophy className="w-3 h-3 text-yellow-500 flex-shrink-0" />}
                         </div>
                       </div>
                     );

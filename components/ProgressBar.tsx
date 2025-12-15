@@ -18,17 +18,17 @@ export default function ProgressBar({ value, max, color = 'blue' }: ProgressBarP
   const displayPercentage = Math.round(percentage);
 
   return (
-    <div 
-      className='w-full h-2 bg-gray-100 rounded-full overflow-hidden mt-4'
-      role='progressbar'
-      aria-label={Progresso: %}
-      aria-valuenow={displayPercentage}
-      aria-valuemin={0}
-      aria-valuemax={100}
+    <div
+      className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mt-4"
     >
-      <div 
-        className={h-full rounded-full transition-all duration-500 ease-out }
-        style={{ width: ${percentage}% }}
+      <div
+        className={`h-full rounded-full transition-all duration-500 ease-out ${COLOR_MAP[color]}`}
+        style={{ width: `${percentage}%` }}
+        role="progressbar"
+        aria-label={`Progresso: ${displayPercentage}%`}
+        aria-valuenow={displayPercentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
       />
     </div>
   );

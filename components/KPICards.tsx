@@ -7,7 +7,7 @@ interface KPICardsProps {
   metrics: {
     total: number;
     approved: number;
-    rejected: number; // Derived from sum of stores if needed, or simplified
+    rejected?: number; // Optional: not required for display
   }
 }
 
