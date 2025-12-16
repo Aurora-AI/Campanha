@@ -32,7 +32,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    load();
+    const id = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(id);
   }, []);
 
   const leaderGroup = vm?.leaderGroup ?? "—";

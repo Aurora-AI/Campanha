@@ -73,16 +73,16 @@ async function withStore<T>(
 }
 
 /** API pública (exemplos) */
-export async function putLoad(load: any) {
+export async function putLoad<T extends { carga_id: string }>(load: T) {
   return withStore(STORES.loads, "readwrite", (store) => store.put(load));
 }
 
-export async function getLoad(carga_id: string) {
-  return withStore<any>(STORES.loads, "readonly", (store) => store.get(carga_id));
+export async function getLoad<T = unknown>(carga_id: string): Promise<T | null> {
+  return withStore<T>(STORES.loads, "readonly", (store) => store.get(carga_id)).then((r) => (r ?? null));
 }
 
-export async function getAllLoads(): Promise<any[]> {
-  const result = await withStore<any[]>(STORES.loads, "readonly", (store) => store.getAll());
+export async function getAllLoads<T = unknown>(): Promise<T[]> {
+  const result = await withStore<T[]>(STORES.loads, "readonly", (store) => store.getAll());
   return result || [];
 }
 
@@ -90,11 +90,11 @@ export async function deleteLoad(carga_id: string) {
   return withStore(STORES.loads, "readwrite", (store) => store.delete(carga_id));
 }
 
-export async function setKV(key: string, value: any) {
+export async function setKV(key: string, value: unknown) {
   return withStore(STORES.kv, "readwrite", (store) => store.put({ key, value }));
 }
 
-export async function getKV<T = any>(key: string) {
+export async function getKV<T = unknown>(key: string) {
   return withStore<{ key: string; value: T }>(STORES.kv, "readonly", (store) => store.get(key))
-    .then((row: any) => row?.value as T | undefined);
+    .then((row) => row?.value as T | undefined);
 }
