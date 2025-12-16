@@ -11,7 +11,7 @@ type Props = {
 };
 
 export default function PuzzlePhysicsHero({
-  src = "/puzzle-head.png",
+  src = "/images/puzzle.png",
   alt = "Puzzle Hero",
   size = 400,
 }: Props) {

@@ -32,7 +32,7 @@ export default function CampaignReportLight() {
       {/* Background Texture - Puzzle Head */}
       <div className="absolute inset-0 z-0 opacity-[0.07] pointer-events-none select-none">
         <Image
-          src="/images/puzzle-head.png"
+          src="/images/puzzle.png"
           alt=""
           fill
           className="object-cover object-top"
