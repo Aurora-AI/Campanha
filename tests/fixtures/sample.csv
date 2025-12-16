@@ -1,0 +1,24 @@
+RELATORIO;Campanha Mycelium
+GERADO;13/12/2025
+OBS;Fixture para testes
+Data da proposta;Loja;CNPJ;CPF;Situação;Ticket 1ª compra;Grupo
+12/12/2024;Loja Alpha;00.000.000/0001-00;111.***.***-11;Aprovado;R$ 60,00;G1
+12/12/2024;Loja Beta;11.111.111/0001-11;222.***.***-22;Aprovado;R$ 50,00;G2
+12/11/2025;Loja Alpha;00.000.000/0001-00;333.***.***-33;Aprovado;R$ 70,00;G1
+12/11/2025;Loja Alpha;00.000.000/0001-00;444.***.***-44;Aprovado;R$ 110,00;G1
+12/11/2025;Loja Beta;11.111.111/0001-11;555.***.***-55;Aprovado;R$ 130,00;G2
+12/11/2025;Loja Beta;11.111.111/0001-11;666.***.***-66;Aprovado;R$ 140,00;G2
+12/11/2025;Loja Beta;11.111.111/0001-11;777.***.***-77;Reprovado;;G2
+05/12/2025;Loja Alpha;00.000.000/0001-00;888.***.***-88;Aprovado;R$ 80,00;G1
+05/12/2025;Loja Alpha;00.000.000/0001-00;999.***.***-99;Aguardando Finalizar o Cadastro;;G1
+05/12/2025;Loja Beta;11.111.111/0001-11;000.***.***-00;Pendente;;G2
+11/12/2025;Loja Alpha;00.000.000/0001-00;123.***.***-00;Aprovado;R$ 90,00;G1
+11/12/2025;Loja Beta;11.111.111/0001-11;456.***.***-11;Reprovado;;G2
+11/12/2025;Loja Beta;11.111.111/0001-11;789.***.***-22;Análise;;G2
+11/12/2025;Loja Beta;11.111.111/0001-11;147.***.***-33;Aprovado;R$ 120,00;G2
+12/12/2025;Loja Alpha;00.000.000/0001-00;258.***.***-44;Aprovado;R$ 100,00;G1
+12/12/2025;Loja Alpha;00.000.000/0001-00;369.***.***-55;Aguardando Documentos;;G1
+12/12/2025;Loja Beta;11.111.111/0001-11;159.***.***-66;Aprovado;R$ 200,00;G2
+12/12/2025;Loja Beta;11.111.111/0001-11;753.***.***-77;Aprovado;R$ 150,00;G2
+12/12/2025;Loja Beta;11.111.111/0001-11;951.***.***-88;Pendente;;G2
+

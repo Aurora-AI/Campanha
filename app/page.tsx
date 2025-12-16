@@ -1,52 +1,107 @@
 "use client";
 
-// CONTRACT NOTE (Home = Presentation Layer):
-// - Home must render only what comes from GET /api/latest
-// - No calculations, no aggregation, no new business rules
-// - If a needed field is missing in the snapshot, show elegant fallback ("—")
-// - Snapshot minimum expected: publishedAt, version, data (DashboardData), optional sourceFileName
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchLatest } from "@/lib/latestClient";
-import { toHomeViewModel, type HomeViewModel } from "@/lib/homeSnapshot";
 
-export const dynamic = "force-dynamic";
+import type { MetricsPayload } from "@/lib/metrics/compute";
+import CoverHero from "@/components/editorial/CoverHero";
+import CoverKpiStrip from "@/components/editorial/CoverKpiStrip";
+import TopStoresToday from "@/components/editorial/TopStoresToday";
+import LeadersPeriod from "@/components/editorial/LeadersPeriod";
+import ManagerRadar from "@/components/editorial/ManagerRadar";
+
+type LoadStatus = "empty" | "ok" | "error";
+
+const CoverSkeleton = () => (
+  <div className="space-y-6 animate-pulse">
+    <div className="h-56 md:h-64 rounded-4xl bg-gray-100 border border-gray-200" />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {Array.from({ length: 4 }).map((_, idx) => (
+        <div key={idx} className="h-24 rounded-3xl bg-gray-100 border border-gray-200" />
+      ))}
+    </div>
+    <div className="h-56 rounded-4xl bg-gray-100 border border-gray-200" />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="h-72 rounded-4xl bg-gray-100 border border-gray-200" />
+      <div className="h-72 rounded-4xl bg-gray-100 border border-gray-200" />
+    </div>
+  </div>
+);
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<"empty" | "ok">("empty");
-  const [vm, setVm] = useState<HomeViewModel | null>(null);
+  const [status, setStatus] = useState<LoadStatus>("empty");
+  const [metrics, setMetrics] = useState<MetricsPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async (): Promise<void> => {
     setLoading(true);
-    const res = await fetchLatest();
-    if (res.status === "ok" && res.snapshot) {
-      setVm(toHomeViewModel(res.snapshot));
-      setStatus("ok");
-    } else {
-      setVm(null);
-      setStatus("empty");
-    }
-    setLoading(false);
-  };
+    setError(null);
+    try {
+      const res = await fetch("/api/metrics", { cache: "no-store" });
 
-  useEffect(() => {
-    const id = setTimeout(() => {
-      void load();
-    }, 0);
-    return () => clearTimeout(id);
+      if (res.status === 404) {
+        setMetrics(null);
+        setStatus("empty");
+        return;
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        setMetrics(null);
+        setStatus("error");
+        setError(text || "Falha ao carregar /api/metrics");
+        return;
+      }
+
+      const json = (await res.json()) as MetricsPayload;
+      if (!json?.meta || !json?.headline || !json?.stores) {
+        setMetrics(null);
+        setStatus("error");
+        setError("Resposta inválida de /api/metrics");
+        return;
+      }
+
+      setMetrics(json);
+      setStatus("ok");
+    } catch (err) {
+      console.warn("Home: erro ao carregar /api/metrics", err);
+      setMetrics(null);
+      setStatus("error");
+      setError("Erro de rede ao carregar /api/metrics");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const leaderGroup = vm?.leaderGroup ?? "—";
-  const leaderValue = vm?.leaderValue ?? "—";
-  const leaderGap = vm?.leaderGapToSecond;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const topToday =
+    metrics?.stores
+      ? [...metrics.stores]
+          .sort((a, b) => b.yesterdayApproved - a.yesterdayApproved || a.store.localeCompare(b.store))
+          .filter((s) => s.yesterdayApproved > 0)
+          .slice(0, 3)
+          .map((s) => ({ store: s.store, yesterdayApproved: s.yesterdayApproved, approvalRate: s.approvalRate }))
+      : [];
+
+  const leaders = metrics?.rankings?.storesBySharePct ? metrics.rankings.storesBySharePct.slice(0, 5) : [];
+
+  const radar =
+    metrics?.stores
+      ? [...metrics.stores]
+          .sort((a, b) => b.pending.total - a.pending.total || a.store.localeCompare(b.store))
+          .filter((s) => s.pending.total > 0)
+          .slice(0, 3)
+          .map((s) => ({ store: s.store, pendingTotal: s.pending.total, messageToManager: s.pending.messageToManager }))
+      : [];
 
   return (
     <main className="min-h-screen bg-[#FDFDFD] flex flex-col">
-      {/* Topbar */}
       <header className="w-full max-w-7xl mx-auto px-6 py-8 flex justify-between items-center">
-        <div className="text-sm font-bold tracking-[0.3em] uppercase text-gray-900">Calceleve</div>
+        <div className="text-sm font-bold tracking-[0.3em] uppercase text-gray-900">Mycelium</div>
         <div className="flex items-center gap-3">
           <button
             onClick={load}
@@ -55,125 +110,97 @@ export default function Home() {
           >
             {loading ? "ATUALIZANDO…" : "RECARREGAR"}
           </button>
-          <Link href="/dashboard" className="px-4 py-2 bg-black text-white text-xs font-bold tracking-widest rounded-full hover:scale-105 transition-transform">
-            VER DETALHES
+          <Link
+            href="/dashboard"
+            className="px-4 py-2 bg-black text-white text-xs font-bold tracking-widest rounded-full hover:scale-105 transition-transform"
+          >
+            ABRIR DASHBOARD
           </Link>
         </div>
       </header>
 
-      {/* EMPTY STATE */}
-      {status === "empty" && (
-        <section className="flex-1 flex items-center justify-center text-center px-6">
-          <div className="space-y-6 max-w-xl">
-            <h1 className="text-4xl md:text-6xl font-serif font-medium text-gray-900">Painel Aceleração 2025</h1>
-            <p className="text-gray-600">Nenhuma atualização publicada ainda.</p>
+      <section className="flex-1 w-full max-w-7xl mx-auto px-6 pb-16 space-y-8">
+        {loading && !metrics && <CoverSkeleton />}
+
+        {!loading && status === "empty" && (
+          <div className="bg-white rounded-4xl p-10 border border-gray-100 text-center space-y-4">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-700 text-xs tracking-widest">
-              Resultados visíveis para reconhecimento. Prêmios ainda não desbloqueados.
+              Nenhum CSV publicado ainda
             </div>
-            <div className="pt-4">
+            <h1 className="text-4xl md:text-5xl font-serif font-medium text-gray-900">Capa Editorial</h1>
+            <p className="text-gray-600">
+              Envie o CSV para publicar a campanha e gerar a revista de dados.
+            </p>
+            <div className="pt-2">
               <Link href="/dashboard" className="text-sm underline underline-offset-4 text-gray-900 hover:text-black">
-                Acessar área de publicação
+                Ir para upload e detalhamento
               </Link>
             </div>
           </div>
-        </section>
-      )}
+        )}
 
-      {/* DATA STATE */}
-      {status === "ok" && (
-        <section className="flex-1 flex flex-col items-center justify-start max-w-7xl mx-auto px-6 py-10 gap-12">
-          {/* Hero */}
-          <div className="w-full grid md:grid-cols-2 gap-10 items-center">
-            <div className="space-y-4">
-              <h1 className="text-5xl md:text-7xl font-serif font-medium text-gray-900 leading-[1.1]">
-                Painel Aceleração 2025
-              </h1>
-              <p className="text-gray-500 text-lg">Resultados em tempo real (publicação oficial)</p>
-              <div className="mt-6 p-6 rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-sm transition-all">
-                <div className="text-[11px] font-bold tracking-[0.25em] text-gray-500">LÍDER ATUAL</div>
-                <div className="mt-2 text-2xl md:text-3xl font-medium text-gray-900">{leaderGroup}</div>
-                <div className="mt-1 text-4xl md:text-5xl font-serif text-black">{leaderValue}</div>
-                {leaderGap != null && (
-                  <div className="mt-2 text-sm text-gray-600">distância para o 2º: {String(leaderGap)}</div>
-                )}
-              </div>
-            </div>
-            {/* Visual subtle block */}
-            <div className="h-64 md:h-80 w-full rounded-2xl bg-linear-to-br from-gray-100 to-white shadow-inner" />
-          </div>
-
-          {/* Podium Top 3 */}
-          <div className="w-full">
-            <div className="text-[11px] font-bold tracking-[0.25em] text-gray-500">PODIUM</div>
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(vm?.top3 ?? []).slice(0, 3).map((item, idx) => (
-                <div key={idx} className={`p-5 rounded-2xl border bg-white/70 transition-all ${idx === 0 ? "border-black" : "border-gray-200"}`}>
-                  <div className="text-xs text-gray-500">{idx + 1}º</div>
-                  <div className="mt-1 text-xl font-medium text-gray-900">{item?.group ?? "—"}</div>
-                  <div className={`mt-1 text-3xl font-serif ${idx === 0 ? "text-black" : "text-gray-800"}`}>{item?.value ?? "—"}</div>
-                </div>
-              ))}
-              {(!vm?.top3 || vm.top3.length === 0) && (
-                <div className="p-5 rounded-2xl border border-dashed border-gray-200 text-gray-500">Top 3 indisponível no snapshot</div>
-              )}
-            </div>
-          </div>
-
-          {/* Status de Prêmios */}
-          <div className="w-full">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-700 text-xs tracking-widest">
-              Resultados visíveis para reconhecimento. Prêmios ainda não desbloqueados.
-            </div>
-          </div>
-
-          {/* Chase list (opcional) */}
-          {vm?.chase && vm.chase.length > 0 && (
-            <div className="w-full">
-              <div className="text-[11px] font-bold tracking-[0.25em] text-gray-500">PRESSÃO</div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                {vm.chase.slice(0, 5).map((c, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border border-gray-200 bg-white/70 flex items-center justify-between">
-                    <div className="text-gray-900 font-medium">{c.group ?? "—"}</div>
-                    <div className="text-sm text-gray-600">gap: {c.gap != null ? String(c.gap) : "—"}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Meta ruler (opcional) */}
-          {vm?.metaRuler && (
-            <div className="w-full">
-              <div className="text-[11px] font-bold tracking-[0.25em] text-gray-500">RÉGUA DE META</div>
-              <div className="mt-3 p-5 rounded-2xl border border-gray-200 bg-white/70">
-                <div className="text-gray-900 font-medium">{vm.metaRuler.goalLabel ?? "Meta"}</div>
-                <div className="mt-1 text-3xl font-serif text-black">{vm.metaRuler.goalValue ?? "—"}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Footer factual */}
-          <footer className="w-full pt-6 border-t border-gray-200 flex justify-between items-center text-sm text-gray-600">
-            <div>
-              Última atualização: {vm?.publishedAt ?? "—"}
-              {" "}—{" "}
-              {vm?.sourceFileName ?? "Versão Pública"}
-            </div>
-            <div className="flex items-center gap-3">
+        {!loading && status === "error" && (
+          <div className="bg-red-50 rounded-4xl p-8 border border-red-200 text-center space-y-3">
+            <div className="text-sm font-bold text-red-800">Erro ao carregar métricas</div>
+            <div className="text-sm text-red-700">{error ?? "Tente novamente."}</div>
+            <div className="pt-2 flex items-center justify-center gap-4">
               <button
                 onClick={load}
-                className="px-4 py-2 text-xs font-bold tracking-widest rounded-full border border-gray-300 hover:border-black hover:bg-black hover:text-white transition-colors"
+                className="px-4 py-2 text-xs font-bold tracking-widest rounded-full border border-red-300 hover:border-red-700 hover:bg-red-700 hover:text-white transition-colors"
                 disabled={loading}
               >
                 {loading ? "ATUALIZANDO…" : "RECARREGAR"}
               </button>
-              <Link href="/dashboard" className="text-sm underline underline-offset-4 text-gray-900 hover:text-black">
-                Ver detalhes
+              <Link href="/dashboard" className="text-sm underline underline-offset-4 text-red-900 hover:text-red-950">
+                Abrir dashboard
               </Link>
             </div>
-          </footer>
-        </section>
-      )}
+          </div>
+        )}
+
+        {metrics && status === "ok" && (
+          <>
+            <CoverHero
+              lastDay={metrics.meta.lastDay}
+              totalApproved={metrics.headline.totalApproved}
+              yesterdayApproved={metrics.headline.yesterdayApproved}
+            />
+
+            <CoverKpiStrip
+              deltaVsPrevDay={metrics.headline.deltaVsPrevDay}
+              deltaVsSameWeekday={metrics.headline.deltaVsSameWeekday}
+              deltaVsSameMonthDay={metrics.headline.deltaVsSameMonthDay}
+              deltaVsSameYearDay={metrics.headline.deltaVsSameYearDay}
+            />
+
+            <TopStoresToday lastDay={metrics.meta.lastDay} items={topToday} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <LeadersPeriod items={leaders} />
+              <ManagerRadar items={radar} />
+            </div>
+
+            <footer className="pt-4 border-t border-gray-100 text-sm text-gray-600 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                Última atualização: {new Date(metrics.meta.uploadedAt).toLocaleString("pt-BR")} — período{" "}
+                {metrics.meta.period.min} → {metrics.meta.period.max}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={load}
+                  className="px-4 py-2 text-xs font-bold tracking-widest rounded-full border border-gray-300 hover:border-black hover:bg-black hover:text-white transition-colors"
+                  disabled={loading}
+                >
+                  {loading ? "ATUALIZANDO…" : "RECARREGAR"}
+                </button>
+                <Link href="/dashboard" className="text-sm underline underline-offset-4 text-gray-900 hover:text-black">
+                  Ver miolo (detalhes)
+                </Link>
+              </div>
+            </footer>
+          </>
+        )}
+      </section>
     </main>
   );
 }

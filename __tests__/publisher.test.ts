@@ -5,15 +5,19 @@
  * - loadLatestSnapshot
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { publishSnapshot, loadLatestSnapshot, PublicSnapshot } from "@/lib/publisher";
 
-// Mock fetch global
-global.fetch = vi.fn();
+let fetchMock: ReturnType<typeof vi.fn>;
 
 describe("Publisher Module", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("publishSnapshot", () => {
@@ -33,7 +37,7 @@ describe("Publisher Module", () => {
         },
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, url: "https://blob.vercel-storage.com/calceleve/latest.json" }),
       });
@@ -42,7 +46,7 @@ describe("Publisher Module", () => {
 
       expect(result.success).toBe(true);
       expect((result as any).url).toContain("calceleve");
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         "/api/publish",
         expect.objectContaining({
           method: "POST",
@@ -71,7 +75,7 @@ describe("Publisher Module", () => {
         },
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 401,
         json: async () => ({
@@ -101,7 +105,7 @@ describe("Publisher Module", () => {
         },
       };
 
-      (global.fetch as any).mockRejectedValueOnce(
+      fetchMock.mockRejectedValueOnce(
         new Error("Network error")
       );
 
@@ -114,7 +118,7 @@ describe("Publisher Module", () => {
 
   describe("loadLatestSnapshot", () => {
     it("deve retornar null quando snapshot não existe (204)", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         status: 204,
       });
 
@@ -139,7 +143,7 @@ describe("Publisher Module", () => {
         },
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => mockSnapshot,
@@ -148,7 +152,7 @@ describe("Publisher Module", () => {
       const result = await loadLatestSnapshot();
 
       expect(result).toEqual(mockSnapshot);
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         "/api/latest",
         expect.objectContaining({
           cache: "no-store",
@@ -157,7 +161,7 @@ describe("Publisher Module", () => {
     });
 
     it("deve retornar null para snapshot inválido (sem data)", async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({ version: "1", publishedAt: "2025-01-01T10:00:00Z" }),
@@ -169,7 +173,7 @@ describe("Publisher Module", () => {
     });
 
     it("deve retornar null em caso de erro", async () => {
-      (global.fetch as any).mockRejectedValueOnce(
+      fetchMock.mockRejectedValueOnce(
         new Error("Network error")
       );
 

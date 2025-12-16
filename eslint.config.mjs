@@ -11,12 +11,15 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
   ]),
   {
     files: [
       "**/__tests__/**/*.{ts,tsx,js,jsx}",
       "__tests__/**/*.{ts,tsx,js,jsx}",
+      "**/tests/**/*.{ts,tsx,js,jsx}",
+      "tests/**/*.{ts,tsx,js,jsx}",
     ],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
