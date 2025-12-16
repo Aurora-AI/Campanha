@@ -14,7 +14,10 @@ export async function GET() {
       });
     }
 
-    const res = await fetch(meta.url, { cache: "no-store" });
+    const url = new URL(meta.url);
+    url.searchParams.set("t", String(Date.now()));
+
+    const res = await fetch(url.toString(), { cache: "no-store" });
     if (!res.ok) {
       return new NextResponse("Dados não encontrados", {
         status: 404,
@@ -34,4 +37,3 @@ export async function GET() {
     });
   }
 }
-
