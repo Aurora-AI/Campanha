@@ -1,0 +1,11 @@
+calceleve_admin_token_2025_seguro
+$token = "calceleve_admin_token_2025_seguro"
+$body = '{"publishedAt":"2025-12-15T00:00:00.000Z","version":"1","payload":{"ping":"ok"}}'
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "https://campanha-57mgdd7f7-auroracrm.vercel.app/api/publish" `
+  -Headers @{ Authorization = "Bearer $token" } `
+  -ContentType "application/json" `
+  -Body $body
+  096.413.999-50
