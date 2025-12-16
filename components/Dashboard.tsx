@@ -2,41 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { UploadCloud, Loader2, RefreshCw } from "lucide-react";
-import { DashboardData } from "@/lib/pipeline";
-import KPICards from "./KPICards";
-import EvolutionChart from "./EvolutionChart";
-import GroupPerformance from "./GroupPerformance";
+import type { MetricsPayload } from "@/lib/metrics/compute";
 
 export default function CalceleveDashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<MetricsPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cargaInfo, setCargaInfo] = useState<{ nome: string; data: string } | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  type CampaignBlobPayload = {
-    meta?: { source?: string; uploadedAt?: string; rows?: number };
-    data: DashboardData;
-  };
-
-  // Reload latest campaign data from Blob via API (source of truth)
+  // Reload latest editorial metrics from Blob via API (source of truth)
   const reloadLatestFromBlob = async () => {
     try {
-      const res = await fetch("/api/data", { cache: "no-store" });
+      const res = await fetch("/api/metrics", { cache: "no-store" });
       if (!res.ok) return false;
 
-      const payload = (await res.json()) as CampaignBlobPayload;
-      if (!payload?.data) return false;
+      const payload = (await res.json()) as MetricsPayload;
+      if (!payload?.meta || !payload?.headline || !payload?.stores) return false;
 
-      setData(payload.data);
-      setCargaInfo({
-        nome: payload.meta?.source || "campanha-data.json",
-        data: payload.meta?.uploadedAt || new Date().toISOString(),
-      });
-
+      setData(payload);
       return true;
     } catch (err) {
-      console.error("Erro ao carregar /api/data:", err);
+      console.error("Erro ao carregar /api/metrics:", err);
       return false;
     }
   };
@@ -95,7 +81,7 @@ export default function CalceleveDashboard() {
       }
 
       const loaded = await reloadLatestFromBlob();
-      if (!loaded) throw new Error("CSV enviado, mas não foi possível carregar /api/data");
+      if (!loaded) throw new Error("CSV enviado, mas não foi possível carregar /api/metrics");
 
       setStatusMessage("✅ CSV enviado com sucesso");
       setTimeout(() => setStatusMessage(null), 3000);
@@ -107,14 +93,29 @@ export default function CalceleveDashboard() {
     }
   };
 
+  const fmtPct = (v: number | null | undefined) => (v == null ? "—" : `${(v * 100).toFixed(1)}%`);
+  const fmtDelta = (delta: { abs: number; pct: number | null } | undefined) => {
+    if (!delta) return "—";
+    const abs = delta.abs >= 0 ? `+${delta.abs}` : String(delta.abs);
+    const pct = delta.pct == null ? "—" : `${(delta.pct * 100).toFixed(1)}%`;
+    return `${abs} (${pct})`;
+  };
+  const fmtMoney = (v: number | null | undefined) =>
+    v == null
+      ? "—"
+      : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
   return (
     <section className="w-full space-y-10">
       
       {/* Header with Load Info */}
-      {cargaInfo && (
+      {data?.meta && (
         <div className="bg-linear-to-r from-blue-50 to-blue-100 rounded-4xl p-4 border border-blue-200 flex justify-between items-center">
           <p className="text-sm text-blue-900">
-            <span className="font-bold">📊 Última atualização:</span> {new Date(cargaInfo.data).toLocaleString("pt-BR")} — <span className="italic">{cargaInfo.nome}</span>
+            <span className="font-bold">📊 Última atualização:</span> {new Date(data.meta.uploadedAt).toLocaleString("pt-BR")} —{" "}
+            <span className="italic">
+              período {data.meta.period.min} → {data.meta.period.max} (último dia: {data.meta.lastDay})
+            </span>
           </p>
           <button
             onClick={handleReload}
@@ -127,7 +128,7 @@ export default function CalceleveDashboard() {
         </div>
       )}
 
-      {!cargaInfo && !loading && (
+      {!data?.meta && !loading && (
         <div className="bg-yellow-50 rounded-4xl p-6 border border-yellow-200 text-center space-y-3">
           <p className="text-sm text-yellow-900 font-semibold">
             📭 Nenhum CSV enviado ainda.
@@ -140,8 +141,8 @@ export default function CalceleveDashboard() {
 
       {/* Upload Section */}
       <div className="bg-white rounded-4xl p-8 shadow-sm border border-gray-100 text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Painel Aceleração 2025</h1>
-        <p className="text-gray-500 mb-8">Importe o CSV diário para apuração de metas e grupos.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Painel Aceleração 2025</h1>
+          <p className="text-gray-500 mb-8">Importe o CSV diário para apuração de metas e grupos.</p>
         
         {!data && (
           <label className="inline-flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 px-12 py-10 transition hover:bg-gray-100 hover:border-gray-300">
@@ -158,7 +159,7 @@ export default function CalceleveDashboard() {
             <div className="mt-4 space-y-4">
               <div className="flex justify-center gap-4">
                 <div className="text-sm text-green-600 font-bold bg-green-50 px-4 py-2 rounded-full">
-                  ✅ Base Carregada: {data.metrics.total} registros
+                  ✅ Base Carregada: {data.meta.rows} linhas
                 </div>
                 <button onClick={() => setData(null)} className="text-sm text-gray-400 hover:text-black underline">
                   Trocar Arquivo
@@ -171,30 +172,148 @@ export default function CalceleveDashboard() {
       {data && (
         <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700">
           
-          {/* 1. Visão Geral (KPIs) */}
-          <KPICards metrics={data.metrics} />
-
-          {/* 2. Performance por Grupo (O Coração da Campanha) */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Apuração por Grupos</h2>
-            <GroupPerformance weeks={data.metrics.weeks} />
+          {/* 1. Headline */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-4xl p-6 border border-gray-100">
+              <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">Total aprovados</div>
+              <div className="mt-2 text-4xl font-black text-gray-900">{data.headline.totalApproved}</div>
+            </div>
+            <div className="bg-white rounded-4xl p-6 border border-gray-100">
+              <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">Aprovados no último dia ({data.meta.lastDay})</div>
+              <div className="mt-2 text-4xl font-black text-gray-900">{data.headline.yesterdayApproved}</div>
+            </div>
           </div>
 
-          {/* 3. Evolução */}
-          <div className="bg-white p-6 rounded-4xl border border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Evolução Diária de Aprovações</h2>
-            <EvolutionChart data={data.metrics.dailyEvolution} />
+          {/* 2. Comparativos */}
+          <div className="bg-white rounded-4xl p-6 border border-gray-100">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Comparativos (último dia)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div className="p-4 rounded-2xl bg-gray-50">
+                <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">vs D-2</div>
+                <div className="mt-2 font-bold text-gray-900">{fmtDelta(data.headline.deltaVsPrevDay)}</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-gray-50">
+                <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">vs semana anterior</div>
+                <div className="mt-2 font-bold text-gray-900">{fmtDelta(data.headline.deltaVsSameWeekday)}</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-gray-50">
+                <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">vs mês anterior</div>
+                <div className="mt-2 font-bold text-gray-900">{fmtDelta(data.headline.deltaVsSameMonthDay)}</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-gray-50">
+                <div className="text-xs font-bold tracking-widest text-gray-400 uppercase">vs ano anterior</div>
+                <div className="mt-2 font-bold text-gray-900">{fmtDelta(data.headline.deltaVsSameYearDay)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Ranking geral */}
+          <div className="bg-white rounded-4xl p-6 border border-gray-100">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Ranking geral (Top 10 por participação)</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-gray-500">
+                  <tr className="border-b border-gray-100">
+                    <th className="py-2 pr-4">#</th>
+                    <th className="py-2 pr-4">Loja</th>
+                    <th className="py-2 pr-4 text-right">Aprovados</th>
+                    <th className="py-2 text-right">Participação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.rankings.storesBySharePct.slice(0, 10).map((r, idx) => (
+                    <tr key={`${r.store}-${idx}`} className="border-b border-gray-50">
+                      <td className="py-2 pr-4 text-gray-400 font-mono">#{idx + 1}</td>
+                      <td className="py-2 pr-4 font-medium text-gray-900">{r.store}</td>
+                      <td className="py-2 pr-4 text-right font-bold text-gray-900">{r.approved}</td>
+                      <td className="py-2 text-right text-gray-600">{fmtPct(r.sharePct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 4. Cards por loja */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Lojas</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {data.stores.map((s) => (
+                <div key={s.store} className="bg-white rounded-4xl p-6 border border-gray-100 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-lg font-bold text-gray-900">{s.store}</div>
+                      {s.cnpj && <div className="text-xs text-gray-500">CNPJ: {s.cnpj}</div>}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">Taxa de aprovação</div>
+                      <div className="text-lg font-black text-gray-900">{fmtPct(s.approvalRate)}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="p-3 rounded-2xl bg-gray-50">
+                      <div className="text-xs text-gray-500">Aprovados</div>
+                      <div className="font-bold text-gray-900">{s.approved}</div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-gray-50">
+                      <div className="text-xs text-gray-500">Reprovados</div>
+                      <div className="font-bold text-gray-900">{s.rejected}</div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-gray-50">
+                      <div className="text-xs text-gray-500">Decididos</div>
+                      <div className="font-bold text-gray-900">{s.decided}</div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-gray-50">
+                      <div className="text-xs text-gray-500">Aprovados (último dia)</div>
+                      <div className="font-bold text-gray-900">{s.yesterdayApproved}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100">
+                      <div className="text-xs font-bold tracking-widest text-blue-700 uppercase">Ticket médio 1ª compra (aprovados)</div>
+                      <div className="mt-1 text-lg font-black text-blue-900">{fmtMoney(s.firstPurchaseTicketAvg)}</div>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
+                      <div className="text-xs font-bold tracking-widest text-amber-700 uppercase">Pendências</div>
+                      <div className="mt-1 text-lg font-black text-amber-900">{s.pending.total}</div>
+                      <div className="mt-2 text-xs text-amber-900">{s.pending.messageToManager}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-700">
+                    <div className="text-xs font-bold tracking-widest text-gray-400 uppercase mb-2">Pendências por tipo</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {s.pending.byType.map((p) => (
+                        <div key={p.type} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+                          <span className="text-gray-600">{p.type}</span>
+                          <span className="font-bold text-gray-900">{p.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {s.pending.sampleCpfsMasked.length > 0 && (
+                    <div className="text-sm text-gray-700">
+                      <div className="text-xs font-bold tracking-widest text-gray-400 uppercase mb-2">Amostra de CPFs (mascarados)</div>
+                      <div className="text-xs text-gray-600 break-words">{s.pending.sampleCpfsMasked.join(", ")}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* 4. Como funciona */}
           <div className="bg-blue-50 rounded-4xl p-6 border border-blue-200">
             <h3 className="text-lg font-bold text-blue-900 mb-4">ℹ️ Como Funciona</h3>
             <ul className="space-y-2 text-sm text-blue-800">
-              <li><strong>Meta do Grupo:</strong> soma das metas individuais (G1: 60, G2: 108, G3: 54)</li>
-              <li><strong>Grupo Elegível:</strong> quando a soma de aprovações bate a meta do grupo</li>
-              <li><strong>Loja Elegível:</strong> quando o grupo é elegível E a loja bate sua meta individual</li>
-              <li><strong>Vencedores (Top 3):</strong> apenas lojas elegíveis, ordenadas por % atingimento</li>
-              <li><strong>Zeramento:</strong> metas reiniciam a cada segunda-feira (semana canônica)</li>
+              <li><strong>Métrica soberana:</strong> Aprovados (situação normalizada == APROVADO)</li>
+              <li><strong>Taxa de aprovação:</strong> APROVADO / (APROVADO + REPROVADO)</li>
+              <li><strong>Comparativos:</strong> calculados sempre contra o último dia presente no CSV</li>
+              <li><strong>Pendências:</strong> Análise, Pendente, Aguardando Documentos, Aguardando Finalizar Cadastro</li>
+              <li><strong>CPFs:</strong> já vêm mascarados no CSV (não re-mascarar)</li>
             </ul>
           </div>
           

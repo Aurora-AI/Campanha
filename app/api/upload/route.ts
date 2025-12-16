@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { processCSVText } from "@/lib/pipeline";
+import Papa from "papaparse";
 
 export const dynamic = "force-dynamic";
+
+const parseCsvText = (csvText: string): Promise<string[][]> =>
+  new Promise((resolve, reject) => {
+    Papa.parse(csvText, {
+      encoding: "UTF-8",
+      delimiter: ";",
+      skipEmptyLines: true,
+      complete: (results) => resolve(results.data as string[][]),
+      error: (err: unknown) => reject(err),
+    });
+  });
 
 export async function POST(req: Request) {
   try {
@@ -17,15 +28,15 @@ export async function POST(req: Request) {
     }
 
     const csvText = await file.text();
-    const processed = await processCSVText(csvText);
+    const rows = await parseCsvText(csvText);
 
     const payload = {
       meta: {
         source: file.name,
         uploadedAt: new Date().toISOString(),
-        rows: processed.raw.length,
+        rows: rows.length,
       },
-      data: processed,
+      data: { rows },
     };
 
     const blob = await put("campanha-data.json", JSON.stringify(payload), {
