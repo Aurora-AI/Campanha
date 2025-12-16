@@ -144,6 +144,124 @@ const getStoreGroup = (storeName: string) => {
   return null;
 };
 
+const buildDashboardData = (allRows: string[][]): DashboardData => {
+  if (allRows.length < 6) throw new Error("Arquivo inválido.");
+
+  const headerRow = (allRows[4] ?? []).map((h) => (h ?? "").trim());
+  const dataRows = allRows.slice(5);
+
+  const weeks: Record<string, WeeklyMetrics> = {};
+  const dailyEvolution: Record<string, { date: string; approved: number }> = {};
+  let total = 0, approved = 0;
+
+  for (const row of dataRows) {
+    const rowObj: Record<string, string> = {};
+    headerRow.forEach((key, idx) => { rowObj[key] = row[idx] ?? ""; });
+
+    const dataEntradaRaw = rowObj["Data de entrada"];
+    if (!dataEntradaRaw) continue; // Pula linhas sem data
+
+    const weekId = getWeekId(dataEntradaRaw);
+    const stage = getStage(dataEntradaRaw);
+    const cnpj = (rowObj["CNPJ"] ?? "").trim();
+    const lojaNome = CNPJ_MAP[cnpj] || `DESCONHECIDA (${cnpj})`;
+    const flags = normalizeSituation(rowObj["Situação"]);
+
+    total++;
+    approved += flags.is_aprovado;
+
+    // Inicializa Semana se não existir
+    if (!weeks[weekId]) {
+      weeks[weekId] = {
+        weekId,
+        label: getWeekLabel(weekId),
+        stage: "aceleracao", // Default, será atualizado pelo dia mais recente
+        groups: {},
+        stores: {}
+      };
+      // Inicializa Grupos na Semana
+      GROUP_DEFINITIONS.forEach(g => {
+        weeks[weekId].groups[g.id] = {
+          id: g.id, name: g.name, goal: g.goal, groupGoal: g.goal * g.storeNumbers.length, approved: 0, stores: [], metGoal: false, missing: g.goal * g.storeNumbers.length
+        };
+      });
+    }
+
+    // Atualiza Etapa da Semana (Pega a mais avançada encontrada no arquivo)
+    // Lógica simplificada: se encontrarmos um dia de sprint, a semana toda está em sprint visualmente
+    const currentStageWeight = { aceleracao: 1, consolidacao: 2, sprint_final: 3 };
+    if (currentStageWeight[stage] > currentStageWeight[weeks[weekId].stage]) {
+      weeks[weekId].stage = stage;
+    }
+
+    // Agrega na Loja (Contexto Semanal)
+    const groupDef = getStoreGroup(lojaNome);
+    const groupId = groupDef ? groupDef.id : "OUTROS";
+
+    if (!weeks[weekId].stores[lojaNome]) {
+      weeks[weekId].stores[lojaNome] = {
+        name: lojaNome, group: groupId, goal: groupDef ? groupDef.goal : 0, total: 0, approved: 0, rejected: 0, analyzing: 0, pending: 0, canceled: 0, flags: { ...flags }
+      };
+    }
+    const s = weeks[weekId].stores[lojaNome];
+    s.total++; s.approved += flags.is_aprovado;
+
+    // Agrega no Grupo (Contexto Semanal)
+    if (groupDef) {
+       weeks[weekId].groups[groupId].approved += flags.is_aprovado;
+    }
+
+    // Evolução Diária (Global)
+    const dateKey = dataEntradaRaw.split(" ")[0];
+    if (!dailyEvolution[dateKey]) dailyEvolution[dateKey] = { date: dateKey, approved: 0 };
+    dailyEvolution[dateKey].approved += flags.is_aprovado;
+  }
+
+  // Consolidação Final por Semana
+  Object.values(weeks).forEach(week => {
+    // 1. Popula stores dentro dos groups
+    Object.values(week.stores).forEach(store => {
+       if (week.groups[store.group]) {
+          week.groups[store.group].stores.push(store);
+       }
+    });
+
+    // 2. Calcula Metas e Ordena
+    Object.values(week.groups).forEach(g => {
+      // Grupo elegível por soma
+      g.metGoal = g.approved >= g.groupGoal;
+      g.missing = Math.max(0, g.groupGoal - g.approved);
+      // Enriquecer lojas com elegibilidade da semana
+      g.stores.forEach(s => {
+        s.missingStore = Math.max(0, g.goal - s.approved);
+        s.pct = g.goal > 0 ? s.approved / g.goal : 0;
+        s.eligible = g.metGoal && s.approved >= g.goal;
+      });
+      // Ranking: apenas elegíveis; ordenar por % atingimento, depois aprovadas, depois nome
+      g.stores.sort((a, b) => {
+        const ea = a.eligible ? 1 : 0; const eb = b.eligible ? 1 : 0;
+        if (eb !== ea) return eb - ea; // elegíveis primeiro
+        const pctDiff = (b.pct ?? 0) - (a.pct ?? 0);
+        if (pctDiff !== 0) return pctDiff;
+        const apprDiff = b.approved - a.approved;
+        if (apprDiff !== 0) return apprDiff;
+        return a.name.localeCompare(b.name);
+      });
+    });
+  });
+
+  return {
+    raw: dataRows,
+    metrics: {
+      total, approved,
+      weeks, // AGORA TEMOS MÚLTIPLAS SEMANAS
+      dailyEvolution: Object.values(dailyEvolution).sort((a, b) =>
+         parse(a.date, "dd/MM/yyyy", new Date()).getTime() - parse(b.date, "dd/MM/yyyy", new Date()).getTime()
+      )
+    },
+  };
+};
+
 // --- PROCESSAMENTO ---
 export const processCSV = (file: File): Promise<DashboardData> =>
   new Promise((resolve, reject) => {
@@ -151,122 +269,30 @@ export const processCSV = (file: File): Promise<DashboardData> =>
       encoding: "UTF-8", delimiter: ";", skipEmptyLines: true,
       complete: (results) => {
         const allRows = results.data as string[][];
-        if (allRows.length < 6) return reject("Arquivo inválido.");
-
-        const headerRow = (allRows[4] ?? []).map((h) => (h ?? "").trim());
-        const dataRows = allRows.slice(5);
-
-        const weeks: Record<string, WeeklyMetrics> = {};
-        const dailyEvolution: Record<string, { date: string; approved: number }> = {};
-        let total = 0, approved = 0;
-
-        for (const row of dataRows) {
-          const rowObj: Record<string, string> = {};
-          headerRow.forEach((key, idx) => { rowObj[key] = row[idx] ?? ""; });
-
-          const dataEntradaRaw = rowObj["Data de entrada"];
-          if (!dataEntradaRaw) continue; // Pula linhas sem data
-
-          const weekId = getWeekId(dataEntradaRaw);
-          const stage = getStage(dataEntradaRaw);
-          const cnpj = (rowObj["CNPJ"] ?? "").trim();
-          const lojaNome = CNPJ_MAP[cnpj] || `DESCONHECIDA (${cnpj})`;
-          const flags = normalizeSituation(rowObj["Situação"]);
-          
-          total++;
-          approved += flags.is_aprovado;
-
-          // Inicializa Semana se não existir
-          if (!weeks[weekId]) {
-            weeks[weekId] = {
-              weekId,
-              label: getWeekLabel(weekId),
-              stage: "aceleracao", // Default, será atualizado pelo dia mais recente
-              groups: {},
-              stores: {}
-            };
-            // Inicializa Grupos na Semana
-            GROUP_DEFINITIONS.forEach(g => {
-              weeks[weekId].groups[g.id] = {
-                id: g.id, name: g.name, goal: g.goal, groupGoal: g.goal * g.storeNumbers.length, approved: 0, stores: [], metGoal: false, missing: g.goal * g.storeNumbers.length
-              };
-            });
-          }
-
-          // Atualiza Etapa da Semana (Pega a mais avançada encontrada no arquivo)
-          // Lógica simplificada: se encontrarmos um dia de sprint, a semana toda está em sprint visualmente
-          const currentStageWeight = { aceleracao: 1, consolidacao: 2, sprint_final: 3 };
-          if (currentStageWeight[stage] > currentStageWeight[weeks[weekId].stage]) {
-            weeks[weekId].stage = stage;
-          }
-
-          // Agrega na Loja (Contexto Semanal)
-          const groupDef = getStoreGroup(lojaNome);
-          const groupId = groupDef ? groupDef.id : "OUTROS";
-          
-          if (!weeks[weekId].stores[lojaNome]) {
-            weeks[weekId].stores[lojaNome] = {
-              name: lojaNome, group: groupId, goal: groupDef ? groupDef.goal : 0, total: 0, approved: 0, rejected: 0, analyzing: 0, pending: 0, canceled: 0, flags: { ...flags }
-            };
-          }
-          const s = weeks[weekId].stores[lojaNome];
-          s.total++; s.approved += flags.is_aprovado;
-
-          // Agrega no Grupo (Contexto Semanal)
-          if (groupDef) {
-             weeks[weekId].groups[groupId].approved += flags.is_aprovado;
-          }
-
-          // Evolução Diária (Global)
-          const dateKey = dataEntradaRaw.split(" ")[0];
-          if (!dailyEvolution[dateKey]) dailyEvolution[dateKey] = { date: dateKey, approved: 0 };
-          dailyEvolution[dateKey].approved += flags.is_aprovado;
+        try {
+          resolve(buildDashboardData(allRows));
+        } catch (err) {
+          reject(err instanceof Error ? err.message : String(err));
         }
-
-        // Consolidação Final por Semana
-        Object.values(weeks).forEach(week => {
-          // 1. Popula stores dentro dos groups
-          Object.values(week.stores).forEach(store => {
-             if (week.groups[store.group]) {
-                week.groups[store.group].stores.push(store);
-             }
-          });
-          
-          // 2. Calcula Metas e Ordena
-          Object.values(week.groups).forEach(g => {
-            // Grupo elegível por soma
-            g.metGoal = g.approved >= g.groupGoal;
-            g.missing = Math.max(0, g.groupGoal - g.approved);
-            // Enriquecer lojas com elegibilidade da semana
-            g.stores.forEach(s => {
-              s.missingStore = Math.max(0, g.goal - s.approved);
-              s.pct = g.goal > 0 ? s.approved / g.goal : 0;
-              s.eligible = g.metGoal && s.approved >= g.goal;
-            });
-            // Ranking: apenas elegíveis; ordenar por % atingimento, depois aprovadas, depois nome
-            g.stores.sort((a, b) => {
-              const ea = a.eligible ? 1 : 0; const eb = b.eligible ? 1 : 0;
-              if (eb !== ea) return eb - ea; // elegíveis primeiro
-              const pctDiff = (b.pct ?? 0) - (a.pct ?? 0);
-              if (pctDiff !== 0) return pctDiff;
-              const apprDiff = b.approved - a.approved;
-              if (apprDiff !== 0) return apprDiff;
-              return a.name.localeCompare(b.name);
-            });
-          });
-        });
-
-        resolve({
-          raw: dataRows,
-          metrics: { 
-            total, approved, 
-            weeks, // AGORA TEMOS MÚLTIPLAS SEMANAS
-            dailyEvolution: Object.values(dailyEvolution).sort((a, b) => 
-               parse(a.date, "dd/MM/yyyy", new Date()).getTime() - parse(b.date, "dd/MM/yyyy", new Date()).getTime()
-            ) 
-          },
-        });
       },
-      error: (err) => reject(err.message),
+      error: (err: unknown) =>
+        reject(err instanceof Error ? err.message : String(err)),
+    });
+  });
+
+export const processCSVText = (csvText: string): Promise<DashboardData> =>
+  new Promise((resolve, reject) => {
+    Papa.parse(csvText, {
+      encoding: "UTF-8", delimiter: ";", skipEmptyLines: true,
+      complete: (results) => {
+        const allRows = results.data as string[][];
+        try {
+          resolve(buildDashboardData(allRows));
+        } catch (err) {
+          reject(err instanceof Error ? err.message : String(err));
+        }
+      },
+      error: (err: unknown) =>
+        reject(err instanceof Error ? err.message : String(err)),
     });
   });

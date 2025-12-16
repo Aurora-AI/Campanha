@@ -1,65 +1,52 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UploadCloud, Loader2, RefreshCw, Globe } from "lucide-react";
-import { processCSV, DashboardData } from "@/lib/pipeline";
-import { storage, LoadBatch } from "@/lib/storage";
-import { loadLatestSnapshot, publishSnapshot, PublicSnapshot } from "@/lib/publisher";
+import { UploadCloud, Loader2, RefreshCw } from "lucide-react";
+import { DashboardData } from "@/lib/pipeline";
 import KPICards from "./KPICards";
 import EvolutionChart from "./EvolutionChart";
 import GroupPerformance from "./GroupPerformance";
-import { v4 as uuidv4 } from "uuid";
 
 export default function CalceleveDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cargaInfo, setCargaInfo] = useState<{ nome: string; data: string } | null>(null);
-  const [adminToken, setAdminToken] = useState("");
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [publishStatus, setPublishStatus] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Reload latest from Blob (source of truth)
+  type CampaignBlobPayload = {
+    meta?: { source?: string; uploadedAt?: string; rows?: number };
+    data: DashboardData;
+  };
+
+  // Reload latest campaign data from Blob via API (source of truth)
   const reloadLatestFromBlob = async () => {
     try {
-      const snapshot = await loadLatestSnapshot();
-      if (snapshot) {
-        setData(snapshot.data);
-        setCargaInfo({ 
-          nome: snapshot.sourceFileName || "Versão Pública", 
-          data: snapshot.publishedAt 
-        });
-        return true;
-      }
-      return false;
+      const res = await fetch("/api/data", { cache: "no-store" });
+      if (!res.ok) return false;
+
+      const payload = (await res.json()) as CampaignBlobPayload;
+      if (!payload?.data) return false;
+
+      setData(payload.data);
+      setCargaInfo({
+        nome: payload.meta?.source || "campanha-data.json",
+        data: payload.meta?.uploadedAt || new Date().toISOString(),
+      });
+
+      return true;
     } catch (err) {
-      console.error("Erro ao carregar latest:", err);
+      console.error("Erro ao carregar /api/data:", err);
       return false;
     }
   };
 
-  // Load latest published snapshot on mount
+  // Load latest on mount
   useEffect(() => {
     const loadPublic = async () => {
       setLoading(true);
       try {
-        // Try to load from Blob (source of truth)
-        const loaded = await reloadLatestFromBlob();
-        
-        if (!loaded) {
-          // Fallback to local storage only if Blob is empty
-          const activeCargaId = await storage.getActiveBatchId();
-          if (activeCargaId) {
-            const batch = await storage.loadBatch(activeCargaId);
-            if (batch) {
-              setData(batch.dados_normalizados);
-              setCargaInfo({ nome: batch.arquivo_nome, data: batch.data_carga });
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Erro ao carregar dados:", err);
+        await reloadLatestFromBlob();
       } finally {
         setLoading(false);
       }
@@ -70,16 +57,16 @@ export default function CalceleveDashboard() {
   const handleReload = async () => {
     setLoading(true);
     setError(null);
-    setPublishStatus(null);
-    
+    setStatusMessage(null);
+
     try {
       const loaded = await reloadLatestFromBlob();
       if (loaded) {
-        setPublishStatus("✅ Dashboard sincronizado com a última versão");
-        setTimeout(() => setPublishStatus(null), 3000);
-      } else {
-        setError("Nenhuma atualização publicada ainda.");
+        setStatusMessage("✅ Dashboard sincronizado com a última versão");
+        setTimeout(() => setStatusMessage(null), 3000);
+        return;
       }
+      setError("Nenhuma atualização publicada ainda.");
     } catch (err) {
       setError("Erro ao recarregar última versão");
       console.error(err);
@@ -95,73 +82,28 @@ export default function CalceleveDashboard() {
     setLoading(true);
     setError(null);
     setData(null);
-    setPublishStatus(null);
+    setStatusMessage(null);
 
     try {
-      const result = await processCSV(file);
-      
-      // Create and persist batch locally
-      const batch: LoadBatch = {
-        carga_id: uuidv4(),
-        data_carga: new Date().toISOString(),
-        tipo_carga: "aprovadas",
-        arquivo_nome: file.name,
-        dados_normalizados: result,
-      };
-      
-      await storage.saveBatch(batch);
-      await storage.setActiveBatch(batch.carga_id);
-      
-      setData(result);
-      setCargaInfo({ nome: file.name, data: batch.data_carga });
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Erro ao enviar CSV");
+      }
+
+      const loaded = await reloadLatestFromBlob();
+      if (!loaded) throw new Error("CSV enviado, mas não foi possível carregar /api/data");
+
+      setStatusMessage("✅ CSV enviado com sucesso");
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      e.target.value = "";
       setLoading(false);
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!data || !adminToken.trim()) {
-      setPublishStatus("❌ Token de publicação obrigatório");
-      return;
-    }
-
-    setPublishing(true);
-    setPublishStatus(null);
-
-    try {
-      const snapshot: PublicSnapshot = {
-        publishedAt: new Date().toISOString(),
-        sourceFileName: cargaInfo?.nome,
-        version: "1",
-        data,
-      };
-
-      const result = await publishSnapshot(snapshot, adminToken);
-
-      if (result.success) {
-        setPublishStatus("✅ Atualização publicada! Sincronizando...");
-        
-        // Force reload from Blob to ensure UI reflects latest
-        setTimeout(async () => {
-          const loaded = await reloadLatestFromBlob();
-          if (loaded) {
-            setPublishStatus("✅ Todos verão esta versão agora");
-            setTimeout(() => setPublishStatus(null), 3000);
-          } else {
-            setPublishStatus("⚠️ Publicado mas erro ao sincronizar dashboard");
-            setTimeout(() => setPublishStatus(null), 3000);
-          }
-        }, 500); // pequeno delay para Blob propagar
-      } else {
-        setPublishStatus(`❌ ${result.error}`);
-      }
-    } catch (err) {
-      setPublishStatus("❌ Erro ao publicar");
-      console.error(err);
-    } finally {
-      setPublishing(false);
     }
   };
 
@@ -188,7 +130,7 @@ export default function CalceleveDashboard() {
       {!cargaInfo && !loading && (
         <div className="bg-yellow-50 rounded-4xl p-6 border border-yellow-200 text-center space-y-3">
           <p className="text-sm text-yellow-900 font-semibold">
-            📭 Nenhuma atualização publicada ainda.
+            📭 Nenhum CSV enviado ainda.
           </p>
           <p className="text-xs text-yellow-800">
             Faça upload do CSV abaixo para começar.
@@ -209,69 +151,22 @@ export default function CalceleveDashboard() {
           </label>
         )}
 
-        {error && <div className="mt-4 text-red-600 bg-red-50 p-3 rounded-lg text-sm">{error}</div>}
-        
-        {data && (
-           <div className="mt-4 space-y-4">
-             <div className="flex justify-center gap-4">
-               <div className="text-sm text-green-600 font-bold bg-green-50 px-4 py-2 rounded-full">
-                 ✅ Base Carregada: {data.metrics.total} registros
-               </div>
-               <button onClick={() => setData(null)} className="text-sm text-gray-400 hover:text-black underline">
-                 Trocar Arquivo
-               </button>
-             </div>
-             
-             {/* Admin Publish Section */}
-             <div className="border-t border-gray-200 pt-4">
-               <button
-                 onClick={() => setShowAdmin(!showAdmin)}
-                 className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 mx-auto"
-               >
-                 <Globe className="w-3 h-3" />
-                 {showAdmin ? "Ocultar" : "Publicar versão"} (Modo Admin)
-               </button>
-               
-               {showAdmin && (
-                 <div className="mt-4 bg-amber-50 rounded-lg p-4 border border-amber-200 max-w-md mx-auto">
-                   <p className="text-xs text-amber-900 mb-3 font-semibold">
-                     Ao publicar, todos que acessarem o link verão esta atualização.
-                   </p>
-                   <input
-                     type="password"
-                     placeholder="Token de Publicação"
-                     value={adminToken}
-                     onChange={(e) => setAdminToken(e.target.value)}
-                     className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm mb-2"
-                   />
-                   <button
-                     onClick={handlePublish}
-                     disabled={publishing || !adminToken.trim()}
-                     className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                   >
-                     {publishing ? (
-                       <>
-                         <Loader2 className="w-4 h-4 animate-spin" />
-                         Publicando...
-                       </>
-                     ) : (
-                       <>
-                         <Globe className="w-4 h-4" />
-                         Publicar Atualização
-                       </>
-                     )}
-                   </button>
-                   {publishStatus && (
-                     <div className={`mt-2 text-xs p-2 rounded ${publishStatus.includes("❌") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                       {publishStatus}
-                     </div>
-                   )}
-                 </div>
-               )}
-             </div>
-           </div>
-        )}
-      </div>
+         {error && <div className="mt-4 text-red-600 bg-red-50 p-3 rounded-lg text-sm">{error}</div>}
+         {statusMessage && <div className="mt-4 text-green-700 bg-green-50 p-3 rounded-lg text-sm">{statusMessage}</div>}
+         
+         {data && (
+            <div className="mt-4 space-y-4">
+              <div className="flex justify-center gap-4">
+                <div className="text-sm text-green-600 font-bold bg-green-50 px-4 py-2 rounded-full">
+                  ✅ Base Carregada: {data.metrics.total} registros
+                </div>
+                <button onClick={() => setData(null)} className="text-sm text-gray-400 hover:text-black underline">
+                  Trocar Arquivo
+                </button>
+              </div>
+            </div>
+         )}
+       </div>
 
       {data && (
         <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700">
