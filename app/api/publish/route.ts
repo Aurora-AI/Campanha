@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       access: "public",
       contentType: "application/json",
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
 
     return NextResponse.json(
