@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import Papa from "papaparse";
 import { detectHeaderAndRows } from "@/lib/metrics/normalize";
+import { detectDelimiter } from "@/lib/csv";
 
 export const dynamic = "force-dynamic";
 
 const parseCsvText = (csvText: string): Promise<string[][]> =>
   new Promise((resolve, reject) => {
+    const delimiter = detectDelimiter(csvText);
     Papa.parse(csvText, {
       encoding: "UTF-8",
-      delimiter: ";",
+      delimiter,
       skipEmptyLines: true,
       complete: (results) => resolve(results.data as string[][]),
       error: (err: unknown) => reject(err),
