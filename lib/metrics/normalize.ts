@@ -1,7 +1,7 @@
 import { formatIsoDateUTC, parseDateCellUTC } from "./time";
 import { CNPJ_MAP } from "../cnpjMap";
 
-export type NormalizedStatus = "APROVADO" | "REPROVADO" | `PENDENTE:${string}`;
+export type StatusClass = "APROVADO" | "EM_ANDAMENTO" | "REPROVADO" | "IGNORADO";
 
 export type PendingType =
   | "AGUARDANDO_DOCUMENTOS"
@@ -10,13 +10,14 @@ export type PendingType =
   | "PENDENTE";
 
 export type NormalizedRow = {
-  date: string; // YYYY-MM-DD
+  proposalId: string;
   store: string;
-  cnpj?: string;
+  cnpj: string;
   cpfMasked?: string;
-  status: NormalizedStatus;
-  group?: string;
-  firstPurchaseTicket: number | null;
+  date?: string; // YYYY-MM-DD (quando disponível)
+  status: StatusClass;
+  pendingType?: PendingType;
+  isApproved: boolean;
 };
 
 export class ColumnNotFoundError extends Error {
@@ -68,9 +69,10 @@ const storeFromCnpj = (cnpj: string | undefined): string | undefined =>
 
 const findColumnIndex = (headers: string[], patterns: string[]): number | undefined => {
   const normalized = headers.map(normalizeText);
+  const pats = patterns.map(normalizeText).filter(Boolean);
   for (let i = 0; i < normalized.length; i++) {
     const h = normalized[i];
-    for (const p of patterns) {
+    for (const p of pats) {
       if (h.includes(p)) return i;
     }
   }
@@ -84,19 +86,35 @@ const requireColumn = (headers: string[], patterns: string[], label: string): nu
 };
 
 export type ColumnIndexes = {
-  date: number;
-  store?: number;
+  proposalId: number;
   cnpj: number;
-  cpf: number;
   status: number;
-  ticket: number;
-  group?: number;
+  date?: number;
+  cpf?: number;
 };
 
 export function inferColumns(headers: string[]): ColumnIndexes {
-  const date = requireColumn(
+  const cnpj = requireColumn(headers, ["cnpj"], "cnpj");
+  const proposalId = requireColumn(
     headers,
     [
+      "numero da proposta",
+      "número da proposta",
+      "numero proposta",
+      "n proposta",
+      "nº proposta",
+      "n da proposta",
+      "nº da proposta",
+    ],
+    "número da proposta"
+  );
+  const status = requireColumn(headers, ["situacao", "situação", "status"], "situação");
+
+  const date = findColumnIndex(
+    headers,
+    [
+      "data de entrada",
+      "data entrada",
       "data da proposta",
       "data proposta",
       "data de proposta",
@@ -104,33 +122,12 @@ export function inferColumns(headers: string[]): ColumnIndexes {
       "data de solicitacao",
       "data cadastro",
       "data de cadastro",
-      "data de entrada",
-      "data entrada",
-    ],
-    "data da proposta"
+    ]
   );
 
-  const store = findColumnIndex(headers, ["loja", "nome da loja", "filial", "estabelecimento", "unidade"]);
-  const cnpj = requireColumn(headers, ["cnpj"], "cnpj");
-  const cpf = requireColumn(headers, ["cpf"], "cpf");
-  const status = requireColumn(headers, ["situacao", "situação", "status"], "situação");
-  const ticket = requireColumn(
-    headers,
-    [
-      "ticket 1a compra",
-      "ticket 1 compra",
-      "ticket primeira compra",
-      "ticket 1ª compra",
-      "primeira compra",
-      "1a compra",
-      "1ª compra",
-    ].map(normalizeText),
-    "ticket 1ª compra"
-  );
+  const cpf = findColumnIndex(headers, ["cpf"]);
 
-  const groupIdx = findColumnIndex(headers, ["grupo", "group"]);
-
-  return { date, store, cnpj, cpf, status, ticket, ...(groupIdx != null ? { group: groupIdx } : {}) };
+  return { proposalId, cnpj, status, ...(date != null ? { date } : {}), ...(cpf != null ? { cpf } : {}) };
 }
 
 export function detectHeaderAndRows(
@@ -139,21 +136,37 @@ export function detectHeaderAndRows(
   if (!Array.isArray(rawRows) || rawRows.length === 0) throw new DatasetError("Dataset vazio.");
 
   const scanLimit = Math.min(rawRows.length, 200);
-  for (let i = 0; i < scanLimit; i++) {
-    const row = rawRows[i] ?? [];
-    if (!Array.isArray(row) || row.length === 0) continue;
+  const proposalPatterns = [
+    "numero da proposta",
+    "número da proposta",
+    "numero proposta",
+    "n proposta",
+    "nº proposta",
+    "n da proposta",
+    "nº da proposta",
+  ];
 
-    const header = row.map((c) => String(c ?? "").trim());
-    try {
-      inferColumns(header);
-      const rows = rawRows.slice(i + 1);
-      return { header, rows, headerIndex: i };
-    } catch {
-      // ignore
-    }
-  }
+  const optionalSignals = [
+    "nome do usuario",
+    "nome do usuário",
+    "cpf",
+    "telefone",
+    "e mail",
+    "e-mail",
+    "data de entrada",
+    "canal de entrada",
+    "data finalizada",
+    "canal finalizado",
+    "seguro",
+    "nome promotor",
+    "perfil promotor",
+    "indicacao",
+    "indicação",
+    "nome indicacao",
+    "nome indicação",
+  ];
 
-  let bestIndex = 0;
+  let bestIndex: number | null = null;
   let bestScore = -1;
 
   for (let i = 0; i < scanLimit; i++) {
@@ -161,17 +174,29 @@ export function detectHeaderAndRows(
     if (!Array.isArray(row) || row.length === 0) continue;
     const headers = row.map((c) => String(c ?? "").trim());
 
-    const score =
-      (findColumnIndex(headers, ["data", "cadastro", "proposta", "solicitacao", "entrada"]) != null ? 1 : 0) +
-      (findColumnIndex(headers, ["loja", "filial", "estabelecimento"]) != null ? 1 : 0) +
-      (findColumnIndex(headers, ["cnpj"]) != null ? 1 : 0) +
-      (findColumnIndex(headers, ["cpf"]) != null ? 1 : 0) +
-      (findColumnIndex(headers, ["situacao", "status"]) != null ? 1 : 0);
+    const hasCnpj = findColumnIndex(headers, ["cnpj"]) != null;
+    const hasProposal = findColumnIndex(headers, proposalPatterns) != null;
+    const hasStatus = findColumnIndex(headers, ["situacao", "situação", "status"]) != null;
+
+    if (!hasCnpj || !hasProposal || !hasStatus) continue;
+
+    let score = 100;
+    for (const s of optionalSignals) {
+      if (findColumnIndex(headers, [s]) != null) score += 1;
+    }
 
     if (score > bestScore) {
       bestScore = score;
       bestIndex = i;
+    } else if (score === bestScore && bestIndex != null && i < bestIndex) {
+      bestIndex = i;
     }
+  }
+
+  if (bestIndex == null) {
+    const header = (rawRows[0] ?? []).map((c) => String(c ?? "").trim());
+    const rows = rawRows.slice(1);
+    return { header, rows, headerIndex: 0 };
   }
 
   const header = (rawRows[bestIndex] ?? []).map((c) => String(c ?? "").trim());
@@ -179,60 +204,29 @@ export function detectHeaderAndRows(
   return { header, rows, headerIndex: bestIndex };
 }
 
-export function normalizeStatus(raw: string): NormalizedStatus {
+export function normalizeStatus(raw: string): { status: StatusClass; pendingType?: PendingType } {
   const s = normalizeText(raw);
-  if (s === "aprovado" || s === "aprovada") return "APROVADO";
-  if (s === "reprovado" || s === "reprovada") return "REPROVADO";
+  if (!s) return { status: "IGNORADO" };
+  if (s === "situacao" || s === "status") return { status: "IGNORADO" };
 
-  if (s === "analise" || s === "em analise") return "PENDENTE:analise";
-  if (s === "pendente") return "PENDENTE:pendente";
-  if (s === "aguardando documentos" || s === "aguardando documentacao") return "PENDENTE:aguardando_documentos";
+  if (s === "aprovado" || s === "aprovada") return { status: "APROVADO" };
+  if (s === "reprovado" || s === "reprovada") return { status: "REPROVADO" };
+
+  if (s === "analise" || s === "em analise") return { status: "EM_ANDAMENTO", pendingType: "ANALISE" };
+  if (s === "pendente") return { status: "EM_ANDAMENTO", pendingType: "PENDENTE" };
+  if (s === "aguardando documentos" || s === "aguardando documentacao") {
+    return { status: "EM_ANDAMENTO", pendingType: "AGUARDANDO_DOCUMENTOS" };
+  }
   if (
     s === "aguardando finalizar o cadastro" ||
     s === "aguardando finalizar cadastro" ||
     s === "aguardando finalizacao do cadastro" ||
     s === "aguardando finalizacao cadastro"
   ) {
-    return "PENDENTE:aguardando_finalizar_cadastro";
+    return { status: "EM_ANDAMENTO", pendingType: "AGUARDANDO_FINALIZAR_CADASTRO" };
   }
 
-  return "PENDENTE:pendente";
-}
-
-export function pendingTypeFromStatus(status: NormalizedStatus): PendingType | null {
-  if (status === "APROVADO" || status === "REPROVADO") return null;
-  const slug = status.slice("PENDENTE:".length);
-  switch (slug) {
-    case "aguardando_documentos":
-      return "AGUARDANDO_DOCUMENTOS";
-    case "aguardando_finalizar_cadastro":
-      return "AGUARDANDO_FINALIZAR_CADASTRO";
-    case "analise":
-      return "ANALISE";
-    case "pendente":
-    default:
-      return "PENDENTE";
-  }
-}
-
-export function parseNumberPtBR(value: string): number | null {
-  const raw = String(value ?? "").trim();
-  if (!raw) return null;
-  const cleaned = raw.replace(/[R$\s]/g, "").replace(/[^0-9,.-]/g, "");
-  if (!cleaned) return null;
-
-  const hasComma = cleaned.includes(",");
-  const hasDot = cleaned.includes(".");
-
-  let normalized = cleaned;
-  if (hasComma && hasDot) {
-    normalized = cleaned.replace(/\./g, "").replace(",", ".");
-  } else if (hasComma && !hasDot) {
-    normalized = cleaned.replace(",", ".");
-  }
-
-  const n = Number.parseFloat(normalized);
-  return Number.isFinite(n) ? n : null;
+  return { status: "IGNORADO" };
 }
 
 export function normalizeRows(header: string[], rows: string[][]): NormalizedRow[] {
@@ -242,29 +236,34 @@ export function normalizeRows(header: string[], rows: string[][]): NormalizedRow
   for (const row of rows) {
     if (!Array.isArray(row) || row.length === 0) continue;
 
-    const dateRaw = String(row[cols.date] ?? "");
-    const dateObj = parseDateCellUTC(dateRaw);
-    if (!dateObj) continue;
-
-    const status = normalizeStatus(String(row[cols.status] ?? ""));
+    const proposalId = String(row[cols.proposalId] ?? "").trim();
+    if (!proposalId) continue;
 
     const cnpj = normalizeCnpj(String(row[cols.cnpj] ?? ""));
-    const storeFromColumn = cols.store != null ? String(row[cols.store] ?? "").trim() : "";
-    const store = storeFromColumn || storeFromCnpj(cnpj) || "";
+    if (!cnpj) continue;
+
+    const store = storeFromCnpj(cnpj) || "";
     if (!store) continue;
 
-    const cpfMasked = String(row[cols.cpf] ?? "").trim() || undefined;
-    const group = cols.group != null ? String(row[cols.group] ?? "").trim() || undefined : undefined;
-    const firstPurchaseTicket = parseNumberPtBR(String(row[cols.ticket] ?? ""));
+    const { status, pendingType } = normalizeStatus(String(row[cols.status] ?? ""));
+    const cpfMasked = cols.cpf != null ? String(row[cols.cpf] ?? "").trim() || undefined : undefined;
+
+    let date: string | undefined = undefined;
+    if (cols.date != null) {
+      const dateRaw = String(row[cols.date] ?? "");
+      const dateObj = parseDateCellUTC(dateRaw);
+      if (dateObj) date = formatIsoDateUTC(dateObj);
+    }
 
     out.push({
-      date: formatIsoDateUTC(dateObj),
+      proposalId,
       store,
       cnpj,
       cpfMasked,
       status,
-      group,
-      firstPurchaseTicket,
+      ...(pendingType ? { pendingType } : {}),
+      ...(date ? { date } : {}),
+      isApproved: status === "APROVADO",
     });
   }
 
