@@ -1,0 +1,16 @@
+RELATORIO	Campanha Cooper Card
+GERADO	13/12/2025
+OBS	Fixture cards-only (captação)
+TICKET 1ª COMPRA	Ruído de outros relatórios
+CNPJ	Número da Proposta	Nome do usuário	CPF	Telefone	E-mail	Situação	Data de entrada	Canal de entrada	Data Finalizada	Canal finalizado	Seguro	Nome Promotor	Perfil Promotor	Indicação	Nome indicação
+07.316.252/0011-45	1001	Ana	111.***.***-11	(41) 99999-0001	ana@example.com	Aprovado	12/12/2025	Loja	12/12/2025	Loja	N	Promotor A	Perfil 1	S	Indicador A
+07.316.252/0011-45	1002	Bruno	222.***.***-22	(41) 99999-0002	bruno@example.com	Pendente	12/12/2025	Loja			N	Promotor A	Perfil 1		
+07.316.252/0001-73	2001	Carla	333.***.***-33	(41) 99999-0003	carla@example.com	Aprovado	12/12/2025	Online	12/12/2025	Online	S	Promotor B	Perfil 2		
+07.316.252/0001-73	2002	Diego	444.***.***-44	(41) 99999-0004	diego@example.com	Reprovado	11/12/2025	Online	11/12/2025	Online	N	Promotor B	Perfil 2		
+07316252001145	1003	Elaine	555.***.***-55	(41) 99999-0005	elaine@example.com	Aguardando Documentos	11/12/2025	Loja			S	Promotor A	Perfil 1		
+07.316.252/0011-45	1004	Felipe	666.***.***-66	(41) 99999-0006	felipe@example.com	Analise	10/12/2025	Loja			N	Promotor A	Perfil 1		
+07.316.252/0001-73	2003	Gabi	777.***.***-77	(41) 99999-0007	gabi@example.com	Aguardando Finalizar o Cadastro	12/12/2025	Online			N	Promotor B	Perfil 2		
+07.316.252/0001-73	2004	Hugo	888.***.***-88	(41) 99999-0008	hugo@example.com		12/12/2025	Online			N	Promotor B	Perfil 2		
+07.316.252/0001-73	2005	Iris	999.***.***-99	(41) 99999-0009	iris@example.com	Status Desconhecido	12/12/2025	Online			N	Promotor B	Perfil 2		
+07.316.252/0011-45	1002	Bruno	222.***.***-22	(41) 99999-0002	bruno@example.com	Aprovado	12/12/2025	Loja	12/12/2025	Loja	N	Promotor A	Perfil 1		
+

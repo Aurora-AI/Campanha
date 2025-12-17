@@ -30,8 +30,8 @@ describe("contract: GET /api/metrics", () => {
       meta: { uploadedAt: "2025-12-13T00:00:00Z" },
       data: {
         rows: [
-          ["Data da proposta", "Loja", "CNPJ", "Situação", "Ticket 1ª compra"],
-          ["12/12/2025", "Loja X", "00.000.000/0001-00", "Aprovado", "R$ 10,00"],
+          ["CNPJ", "Situação"],
+          ["07.316.252/0011-45", "Aprovado"],
         ],
       },
     };
@@ -44,7 +44,6 @@ describe("contract: GET /api/metrics", () => {
 
     const json = await res.json();
     expect(json).toHaveProperty("error");
-    expect(String((json as any).error)).toContain("Coluna cpf não encontrada");
+    expect(String((json as any).error)).toContain("Coluna número da proposta não encontrada");
   });
 });
-

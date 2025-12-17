@@ -3,9 +3,8 @@ import {
   DatasetError,
   PendingType,
   detectHeaderAndRows,
-  inferColumns,
   normalizeRows,
-  pendingTypeFromStatus,
+  type StatusClass,
 } from "./normalize";
 import {
   addDaysUTC,
@@ -33,7 +32,6 @@ export type MetricsPayload = {
   };
   rankings: {
     storesBySharePct: Array<{ store: string; approved: number; sharePct: number }>;
-    groupsByApprovedAbs: Array<{ group: string; approved: number }>;
   };
   stores: Array<{
     store: string;
@@ -43,7 +41,6 @@ export type MetricsPayload = {
     decided: number;
     approvalRate: number | null;
     yesterdayApproved: number;
-    firstPurchaseTicketAvg: number | null;
     pending: {
       total: number;
       byType: Array<{ type: string; count: number }>;
@@ -114,13 +111,10 @@ type StoreAcc = {
   approved: number;
   rejected: number;
   approvedYesterday: number;
-  ticketSumApproved: number;
-  ticketCountApproved: number;
   pendingTotal: number;
   pendingCounts: Record<PendingType, number>;
   pendingCpfSet: Set<string>;
   pendingCpfSample: string[];
-  group?: string;
 };
 
 const ensureStoreAcc = (map: Map<string, StoreAcc>, store: string): StoreAcc => {
@@ -131,8 +125,6 @@ const ensureStoreAcc = (map: Map<string, StoreAcc>, store: string): StoreAcc => 
     approved: 0,
     rejected: 0,
     approvedYesterday: 0,
-    ticketSumApproved: 0,
-    ticketCountApproved: 0,
     pendingTotal: 0,
     pendingCounts: makePendingCounts(),
     pendingCpfSet: new Set(),
@@ -152,57 +144,84 @@ export function computeMetrics(input: ComputeInput): MetricsPayload {
   const sampleLimit = Math.max(1, Math.min(50, input.sampleCpfsPerStore ?? 10));
 
   const { header, rows } = detectHeaderAndRows(input.rawRows);
-  const cols = inferColumns(header);
   const normalized = normalizeRows(header, rows);
 
   if (normalized.length === 0) throw new DatasetError("Nenhuma linha válida encontrada.");
 
-  let minDate = normalized[0].date;
-  let maxDate = normalized[0].date;
+  const statusWeight = (status: StatusClass): number => {
+    switch (status) {
+      case "APROVADO":
+        return 3;
+      case "REPROVADO":
+        return 2;
+      case "EM_ANDAMENTO":
+        return 1;
+      case "IGNORADO":
+      default:
+        return 0;
+    }
+  };
+
+  const byProposal = new Map<string, (typeof normalized)[number]>();
   for (const r of normalized) {
-    if (r.date < minDate) minDate = r.date;
-    if (r.date > maxDate) maxDate = r.date;
+    const key = r.proposalId;
+    const existing = byProposal.get(key);
+    if (!existing) {
+      byProposal.set(key, r);
+      continue;
+    }
+
+    const w = statusWeight(r.status);
+    const ew = statusWeight(existing.status);
+    if (w > ew) {
+      byProposal.set(key, r);
+      continue;
+    }
+
+    if (w === ew) {
+      if (r.date && existing.date) {
+        if (r.date > existing.date) byProposal.set(key, r);
+      } else if (r.date && !existing.date) {
+        byProposal.set(key, r);
+      }
+    }
+  }
+
+  const effectiveRows = Array.from(byProposal.values());
+
+  const dates = effectiveRows.map((r) => r.date).filter((d): d is string => !!d);
+  let minDate = dates[0] ?? "SEM DATA";
+  let maxDate = dates[0] ?? "SEM DATA";
+  for (const d of dates) {
+    if (d < minDate) minDate = d;
+    if (d > maxDate) maxDate = d;
   }
 
   const lastDay = maxDate;
-  const lastDayDate = parseIsoDateUTC(lastDay);
-  const minDayDate = parseIsoDateUTC(minDate);
-  if (!lastDayDate || !minDayDate) throw new DatasetError("Falha ao interpretar datas do dataset.");
-
-  const hasGroupColumn = cols.group != null;
+  const lastDayDate = lastDay !== "SEM DATA" ? parseIsoDateUTC(lastDay) : null;
+  const minDayDate = minDate !== "SEM DATA" ? parseIsoDateUTC(minDate) : null;
 
   const seenDates = new Set<string>();
   const approvedByDate = new Map<string, number>();
 
   const storeMap = new Map<string, StoreAcc>();
-  const groupApproved = new Map<string, number>();
 
   let totalApproved = 0;
   let yesterdayApproved = 0;
 
-  for (const r of normalized) {
-    seenDates.add(r.date);
+  for (const r of effectiveRows) {
+    if (r.date) seenDates.add(r.date);
 
     const storeAcc = ensureStoreAcc(storeMap, r.store);
-    if (!storeAcc.cnpj && r.cnpj) storeAcc.cnpj = r.cnpj;
-    if (hasGroupColumn && !storeAcc.group && r.group) storeAcc.group = r.group;
+    if (!storeAcc.cnpj) storeAcc.cnpj = r.cnpj;
 
-    if (r.status === "APROVADO") {
+    if (r.status === "APROVADO" && r.isApproved) {
       totalApproved += 1;
-      approvedByDate.set(r.date, (approvedByDate.get(r.date) ?? 0) + 1);
+      if (r.date) approvedByDate.set(r.date, (approvedByDate.get(r.date) ?? 0) + 1);
 
       storeAcc.approved += 1;
-      if (r.date === lastDay) storeAcc.approvedYesterday += 1;
-      if (r.firstPurchaseTicket != null) {
-        storeAcc.ticketSumApproved += r.firstPurchaseTicket;
-        storeAcc.ticketCountApproved += 1;
-      }
-
-      if (hasGroupColumn && r.group) {
-        groupApproved.set(r.group, (groupApproved.get(r.group) ?? 0) + 1);
-      }
-
-      if (r.date === lastDay) yesterdayApproved += 1;
+      if (r.date && r.date === lastDay) storeAcc.approvedYesterday += 1;
+      if (r.date && r.date === lastDay) yesterdayApproved += 1;
       continue;
     }
 
@@ -211,8 +230,8 @@ export function computeMetrics(input: ComputeInput): MetricsPayload {
       continue;
     }
 
-    const pendingType = pendingTypeFromStatus(r.status);
-    if (pendingType) {
+    if (r.status === "EM_ANDAMENTO") {
+      const pendingType = r.pendingType ?? "PENDENTE";
       storeAcc.pendingTotal += 1;
       storeAcc.pendingCounts[pendingType] = (storeAcc.pendingCounts[pendingType] ?? 0) + 1;
 
@@ -232,10 +251,11 @@ export function computeMetrics(input: ComputeInput): MetricsPayload {
     return makeDelta(yesterdayApproved, baseline);
   };
 
-  const prevDayDate = addDaysUTC(lastDayDate, -1);
-  const sameWeekdayDate = addDaysUTC(lastDayDate, -7);
-  const sameMonthDayDate = sameDayPreviousMonthUTC(lastDayDate);
-  const sameYearDayDate = diffDaysUTC(lastDayDate, minDayDate) >= 365 ? sameDayPreviousYearUTC(lastDayDate) : null;
+  const prevDayDate = lastDayDate ? addDaysUTC(lastDayDate, -1) : null;
+  const sameWeekdayDate = lastDayDate ? addDaysUTC(lastDayDate, -7) : null;
+  const sameMonthDayDate = lastDayDate ? sameDayPreviousMonthUTC(lastDayDate) : null;
+  const sameYearDayDate =
+    lastDayDate && minDayDate && diffDaysUTC(lastDayDate, minDayDate) >= 365 ? sameDayPreviousYearUTC(lastDayDate) : null;
 
   const storesBySharePct = Array.from(storeMap.values())
     .map((s) => ({
@@ -245,17 +265,10 @@ export function computeMetrics(input: ComputeInput): MetricsPayload {
     }))
     .sort((a, b) => b.approved - a.approved || a.store.localeCompare(b.store));
 
-  const groupsByApprovedAbs = hasGroupColumn
-    ? Array.from(groupApproved.entries())
-        .map(([group, approved]) => ({ group, approved }))
-        .sort((a, b) => b.approved - a.approved || a.group.localeCompare(b.group))
-    : [];
-
   const stores = Array.from(storeMap.values())
     .map((s) => {
       const decided = s.approved + s.rejected;
       const approvalRate = decided > 0 ? s.approved / decided : null;
-      const firstPurchaseTicketAvg = s.ticketCountApproved > 0 ? s.ticketSumApproved / s.ticketCountApproved : null;
 
       return {
         store: s.store,
@@ -265,7 +278,6 @@ export function computeMetrics(input: ComputeInput): MetricsPayload {
         decided,
         approvalRate,
         yesterdayApproved: s.approvedYesterday,
-        firstPurchaseTicketAvg,
         pending: {
           total: s.pendingTotal,
           byType: PENDING_TYPES.map((t) => ({ type: t, count: s.pendingCounts[t] ?? 0 })),
@@ -279,21 +291,20 @@ export function computeMetrics(input: ComputeInput): MetricsPayload {
   const payload: MetricsPayload = {
     meta: {
       uploadedAt: input.uploadedAt,
-      rows: normalized.length,
+      rows: effectiveRows.length,
       period: { min: minDate, max: maxDate },
       lastDay,
     },
     headline: {
       totalApproved,
       yesterdayApproved,
-      deltaVsPrevDay: deltaForDate(prevDayDate),
-      deltaVsSameWeekday: deltaForDate(sameWeekdayDate),
-      deltaVsSameMonthDay: deltaForDate(sameMonthDayDate),
-      deltaVsSameYearDay: deltaForDate(sameYearDayDate),
+      ...(prevDayDate ? { deltaVsPrevDay: deltaForDate(prevDayDate) } : {}),
+      ...(sameWeekdayDate ? { deltaVsSameWeekday: deltaForDate(sameWeekdayDate) } : {}),
+      ...(sameMonthDayDate ? { deltaVsSameMonthDay: deltaForDate(sameMonthDayDate) } : {}),
+      ...(sameYearDayDate ? { deltaVsSameYearDay: deltaForDate(sameYearDayDate) } : {}),
     },
     rankings: {
       storesBySharePct,
-      groupsByApprovedAbs,
     },
     stores,
   };
@@ -308,4 +319,3 @@ export function isColumnNotFoundError(err: unknown): err is ColumnNotFoundError 
 export function isDatasetError(err: unknown): err is DatasetError {
   return err instanceof DatasetError;
 }
-

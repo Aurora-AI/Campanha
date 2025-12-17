@@ -22,7 +22,7 @@ describe("integration: Dashboard", () => {
     render(<Dashboard />);
 
     expect(await screen.findByText(/Total aprovados/i)).toBeInTheDocument();
-    expect(await screen.findByText(String(metrics.headline.totalApproved))).toBeInTheDocument();
+    expect((await screen.findAllByText(String(metrics.headline.totalApproved))).length).toBeGreaterThan(0);
     expect(await screen.findByText(/Ranking geral/i)).toBeInTheDocument();
     expect((await screen.findAllByText(metrics.stores[0]!.store)).length).toBeGreaterThan(0);
   });

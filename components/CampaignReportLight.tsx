@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { TrendingUp, Users, DollarSign } from "lucide-react";
+import { TrendingUp, Users, CreditCard } from "lucide-react";
 import Image from "next/image";
 
 export default function CampaignReportLight() {
@@ -75,12 +75,12 @@ export default function CampaignReportLight() {
            <div className="group relative p-10 rounded-2xl bg-white/70 backdrop-blur-xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 hover:scale-105 hover:shadow-[0_20px_40px_rgb(0,0,0,0.06)]">
               <div className="flex justify-between items-start mb-12">
                 <div className="p-3 bg-gray-50 rounded-full text-gray-950">
-                   <DollarSign strokeWidth={1} size={24} />
+                   <CreditCard strokeWidth={1} size={24} />
                 </div>
                 <span className="font-mono text-xs text-gray-400">+12% vs Q3</span>
               </div>
-              <h3 className="font-serif text-5xl font-medium text-gray-950 mb-2">R$ 1.2M</h3>
-              <p className="font-sans text-sm text-gray-500 font-medium">Faturamento Total</p>
+              <h3 className="font-serif text-5xl font-medium text-gray-950 mb-2">3.2k</h3>
+              <p className="font-sans text-sm text-gray-500 font-medium">Propostas Aprovadas</p>
            </div>
 
            {/* Card 2 */}
