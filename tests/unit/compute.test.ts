@@ -8,8 +8,8 @@ type BlobPayload = {
   data: { rows: string[][] };
 };
 
-describe("metrics/compute", () => {
-  it("calcula headline, comparativos e cards por loja a partir do payload do blob", async () => {
+describe("metrics/compute (cards-only)", () => {
+  it("calcula métricas de captação (Aprovado) sem depender de colunas financeiras", async () => {
     const blobPayload = await loadFixtureJson<BlobPayload>("sample_payload.json");
 
     const payload = computeMetrics({
@@ -18,64 +18,53 @@ describe("metrics/compute", () => {
     });
 
     expect(payload.meta.lastDay).toBe("2025-12-12");
-    expect(payload.meta.period.min).toBe("2024-12-12");
+    expect(payload.meta.period.min).toBe("2025-12-10");
     expect(payload.meta.period.max).toBe("2025-12-12");
 
-    expect(payload.headline.totalApproved).toBe(12);
+    expect(payload.headline.totalApproved).toBe(3);
     expect(payload.headline.yesterdayApproved).toBe(3);
-
-    expect(payload.headline.deltaVsPrevDay).toEqual({ abs: 1, pct: 0.5 });
-    expect(payload.headline.deltaVsSameWeekday).toEqual({ abs: 2, pct: 2 });
-    expect(payload.headline.deltaVsSameMonthDay).toEqual({ abs: -1, pct: -0.25 });
-    expect(payload.headline.deltaVsSameYearDay).toEqual({ abs: 1, pct: 0.5 });
+    expect(payload.headline.deltaVsPrevDay).toEqual({ abs: 3, pct: null });
 
     const shareSum = payload.rankings.storesBySharePct.reduce((sum, s) => sum + s.sharePct, 0);
     expect(shareSum).toBeCloseTo(1, 8);
 
-    expect(payload.rankings.groupsByApprovedAbs.length).toBeGreaterThan(0);
+    expect(payload.stores.length).toBeGreaterThan(0);
+    expect("firstPurchaseTicketAvg" in (payload.stores[0] as any)).toBe(false);
 
     const byStore = new Map(payload.stores.map((s) => [s.store, s]));
-    const alpha = byStore.get("Loja Alpha");
-    const beta = byStore.get("Loja Beta");
+    const loja16 = byStore.get("LOJA 16 Cerro Azul - Centro");
+    const loja06 = byStore.get("LOJA 06 Rio Branco do Sul - Centro");
 
-    expect(alpha).toBeDefined();
-    expect(beta).toBeDefined();
+    expect(loja16?.approved).toBe(2);
+    expect(loja16?.rejected).toBe(0);
+    expect(loja16?.decided).toBe(2);
+    expect(loja16?.approvalRate).toBe(1);
+    expect(loja16?.yesterdayApproved).toBe(2);
+    expect(loja16?.pending.total).toBe(2);
+    expect(loja16?.pending.byType.find((p) => p.type === "AGUARDANDO_DOCUMENTOS")?.count).toBe(1);
+    expect(loja16?.pending.byType.find((p) => p.type === "ANALISE")?.count).toBe(1);
+    expect(loja16?.pending.sampleCpfsMasked.join(",")).toContain("***");
+    expect(loja16?.pending.messageToManager.toLowerCase()).toContain("aguardando documentos");
 
-    expect(alpha?.approved).toBe(6);
-    expect(alpha?.rejected).toBe(0);
-    expect(alpha?.decided).toBe(6);
-    expect(alpha?.approvalRate).toBe(1);
-    expect(alpha?.yesterdayApproved).toBe(1);
-    expect(alpha?.pending.total).toBe(2);
-    expect(alpha?.pending.byType.find((p) => p.type === "AGUARDANDO_DOCUMENTOS")?.count).toBe(1);
-    expect(alpha?.pending.byType.find((p) => p.type === "AGUARDANDO_FINALIZAR_CADASTRO")?.count).toBe(1);
-    expect(alpha?.pending.sampleCpfsMasked.join(",")).toContain("***");
-    expect(alpha?.pending.messageToManager.toLowerCase()).toContain("aguardando documentos");
-    expect(alpha?.firstPurchaseTicketAvg).toBeCloseTo(85, 6);
-
-    expect(beta?.approved).toBe(6);
-    expect(beta?.rejected).toBe(2);
-    expect(beta?.decided).toBe(8);
-    expect(beta?.approvalRate).toBeCloseTo(0.75, 8);
-    expect(beta?.yesterdayApproved).toBe(2);
-    expect(beta?.pending.total).toBe(3);
-    expect(beta?.pending.byType.find((p) => p.type === "PENDENTE")?.count).toBe(2);
-    expect(beta?.pending.byType.find((p) => p.type === "ANALISE")?.count).toBe(1);
-    expect(beta?.pending.sampleCpfsMasked.join(",")).toContain("***");
-    expect(beta?.pending.messageToManager.toLowerCase()).toContain("ocorr");
-    expect(beta?.firstPurchaseTicketAvg).toBeCloseTo(131.666666, 3);
+    expect(loja06?.approved).toBe(1);
+    expect(loja06?.rejected).toBe(1);
+    expect(loja06?.decided).toBe(2);
+    expect(loja06?.approvalRate).toBeCloseTo(0.5, 8);
+    expect(loja06?.yesterdayApproved).toBe(1);
+    expect(loja06?.pending.total).toBe(1);
+    expect(loja06?.pending.byType.find((p) => p.type === "AGUARDANDO_FINALIZAR_CADASTRO")?.count).toBe(1);
   });
 
   it("retorna approvalRate null quando decided == 0", () => {
     const rawRows: string[][] = [
-      ["Data da proposta", "Loja", "CNPJ", "CPF", "Situação", "Ticket 1ª compra"],
-      ["12/12/2025", "Loja Gamma", "22.222.222/0001-22", "999.***.***-99", "Pendente", ""],
+      ["CNPJ", "Número da Proposta", "Situação"],
+      ["07.316.252/0011-45", "9999", "Pendente"],
     ];
 
     const payload = computeMetrics({ uploadedAt: "2025-12-13T00:00:00Z", rawRows });
-    const gamma = payload.stores.find((s) => s.store === "Loja Gamma");
-    expect(gamma?.decided).toBe(0);
-    expect(gamma?.approvalRate).toBeNull();
+    const store = payload.stores.find((s) => s.store === "LOJA 16 Cerro Azul - Centro");
+    expect(store?.decided).toBe(0);
+    expect(store?.approvalRate).toBeNull();
   });
 });
 

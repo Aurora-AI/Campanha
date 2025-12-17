@@ -31,12 +31,6 @@ export const metricsPayloadSchema = z.object({
         sharePct: z.number(),
       })
     ),
-    groupsByApprovedAbs: z.array(
-      z.object({
-        group: z.string(),
-        approved: z.number(),
-      })
-    ),
   }),
   stores: z.array(
     z.object({
@@ -47,7 +41,6 @@ export const metricsPayloadSchema = z.object({
       decided: z.number(),
       approvalRate: z.number().nullable(),
       yesterdayApproved: z.number(),
-      firstPurchaseTicketAvg: z.number().nullable(),
       pending: z.object({
         total: z.number(),
         byType: z.array(
@@ -64,4 +57,3 @@ export const metricsPayloadSchema = z.object({
 });
 
 export type MetricsPayloadSchema = z.infer<typeof metricsPayloadSchema>;
-

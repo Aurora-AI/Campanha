@@ -27,7 +27,13 @@ describe("integration: GET /api/data", () => {
     expect(res.status).toBe(200);
 
     const json = await res.json();
-    expect(json).toEqual(blobPayload);
+    const expected = {
+      ...(blobPayload as any),
+      meta: { ...((blobPayload as any).meta ?? {}) },
+    };
+    delete expected.meta.headers;
+    delete expected.meta.skippedPreambleRows;
+    expect(json).toEqual(expected);
   });
 
   it("sanitiza campos de debug do meta (headers, skippedPreambleRows)", async () => {
@@ -49,10 +55,7 @@ describe("integration: GET /api/data", () => {
     expect(res.status).toBe(200);
 
     const json = await res.json();
-    // Should match original payload (without debug fields)
-    expect(json).toEqual(blobPayload);
-    expect(json.meta).not.toHaveProperty("headers");
-    expect(json.meta).not.toHaveProperty("skippedPreambleRows");
+    expect((json as any).meta).not.toHaveProperty("headers");
+    expect((json as any).meta).not.toHaveProperty("skippedPreambleRows");
   });
 });
-

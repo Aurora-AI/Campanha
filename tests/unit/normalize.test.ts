@@ -6,92 +6,92 @@ import {
   inferColumns,
   normalizeRows,
   normalizeStatus,
-  pendingTypeFromStatus,
 } from "@/lib/metrics/normalize";
 import { loadCsvRowsFixture } from "../helpers/makeRows";
 
-describe("metrics/normalize", () => {
-  it("mapeia exatamente as 6 situações canônicas", () => {
-    expect(normalizeStatus("Aprovado")).toBe("APROVADO");
-    expect(normalizeStatus("Reprovado")).toBe("REPROVADO");
+describe("metrics/normalize (cards-only)", () => {
+  it("classifica Situação conforme contrato e nunca lança por status desconhecido", () => {
+    expect(normalizeStatus("Aprovado")).toEqual({ status: "APROVADO" });
+    expect(normalizeStatus("Reprovado")).toEqual({ status: "REPROVADO" });
 
-    expect(normalizeStatus("Análise")).toBe("PENDENTE:analise");
-    expect(normalizeStatus("Pendente")).toBe("PENDENTE:pendente");
-    expect(normalizeStatus("Aguardando Documentos")).toBe("PENDENTE:aguardando_documentos");
-    expect(normalizeStatus("Aguardando Finalizar o Cadastro")).toBe("PENDENTE:aguardando_finalizar_cadastro");
+    expect(normalizeStatus("Analise")).toEqual({ status: "EM_ANDAMENTO", pendingType: "ANALISE" });
+    expect(normalizeStatus("Pendente")).toEqual({ status: "EM_ANDAMENTO", pendingType: "PENDENTE" });
+    expect(normalizeStatus("Aguardando Documentos")).toEqual({
+      status: "EM_ANDAMENTO",
+      pendingType: "AGUARDANDO_DOCUMENTOS",
+    });
+    expect(normalizeStatus("Aguardando Finalizar o Cadastro")).toEqual({
+      status: "EM_ANDAMENTO",
+      pendingType: "AGUARDANDO_FINALIZAR_CADASTRO",
+    });
+
+    expect(normalizeStatus("")).toEqual({ status: "IGNORADO" });
+    expect(normalizeStatus("Situação")).toEqual({ status: "IGNORADO" });
+    expect(normalizeStatus("Qualquer coisa")).toEqual({ status: "IGNORADO" });
   });
 
-  it("deriva tipo de pendência a partir do status normalizado", () => {
-    expect(pendingTypeFromStatus("APROVADO")).toBeNull();
-    expect(pendingTypeFromStatus("REPROVADO")).toBeNull();
-    expect(pendingTypeFromStatus("PENDENTE:analise")).toBe("ANALISE");
-    expect(pendingTypeFromStatus("PENDENTE:pendente")).toBe("PENDENTE");
-    expect(pendingTypeFromStatus("PENDENTE:aguardando_documentos")).toBe("AGUARDANDO_DOCUMENTOS");
-    expect(pendingTypeFromStatus("PENDENTE:aguardando_finalizar_cadastro")).toBe("AGUARDANDO_FINALIZAR_CADASTRO");
-  });
+  it("detecta header cards-only mesmo com preâmbulo (TSV)", async () => {
+    const rawRows = await loadCsvRowsFixture("sample_cards_only.tsv");
+    const { header, rows, headerIndex } = detectHeaderAndRows(rawRows);
 
-  it("detecta header mesmo com linhas de preâmbulo", async () => {
-    const rawRows = await loadCsvRowsFixture("sample.csv");
-    const { header, rows } = detectHeaderAndRows(rawRows);
-
-    expect(header).toContain("Data da proposta");
-    expect(header).toContain("Loja");
+    expect(headerIndex).toBe(4);
     expect(header).toContain("CNPJ");
-    expect(header).toContain("CPF");
+    expect(header).toContain("Número da Proposta");
     expect(header).toContain("Situação");
-    expect(rows.length).toBeGreaterThan(10);
+    expect(rows.length).toBeGreaterThan(5);
   });
 
-  it("preserva CPF já mascarado (sem re-mask) durante normalização de linhas", async () => {
-    const rawRows = await loadCsvRowsFixture("sample.csv");
-    const { header, rows } = detectHeaderAndRows(rawRows);
-    const normalized = normalizeRows(header, rows);
+  it("aceita dataset mínimo (CNPJ + Número da Proposta + Situação)", () => {
+    const header = ["CNPJ", "Número da Proposta", "Situação"];
+    const rows = [
+      ["07.316.252/0011-45", "1001", "Aprovado"],
+      ["07.316.252/0011-45", "1002", "Pendente"],
+    ];
 
-    const anyPending = normalized.find((r) => r.status.startsWith("PENDENTE:") && r.cpfMasked);
-    expect(anyPending?.cpfMasked).toMatch(/\*/);
-    expect(anyPending?.cpfMasked).toContain(".");
-    expect(anyPending?.cpfMasked).toContain("-");
+    const normalized = normalizeRows(header, rows);
+    expect(normalized.length).toBe(2);
+    expect(normalized[0]?.store).toBe("LOJA 16 Cerro Azul - Centro");
+    expect(normalized[0]?.cnpj).toBe("07.316.252/0011-45");
+    expect(normalized[0]?.proposalId).toBe("1001");
+    expect(normalized[0]?.isApproved).toBe(true);
+    expect(normalized[1]?.isApproved).toBe(false);
   });
 
   it("falha com erro claro quando faltar coluna obrigatória", () => {
-    const headers = ["Data da proposta", "Loja", "CNPJ", "Situação", "Ticket 1ª compra"];
-    expect(() => inferColumns(headers)).toThrowError(ColumnNotFoundError);
-    expect(() => inferColumns(headers)).toThrowError("Coluna cpf não encontrada");
-  });
+    expect(() => inferColumns(["CNPJ", "Situação"])).toThrowError(ColumnNotFoundError);
+    expect(() => inferColumns(["CNPJ", "Situação"])).toThrowError("Coluna número da proposta não encontrada");
 
-  it("deriva loja a partir do CNPJ quando coluna Loja não existir", async () => {
-    const rawRows = await loadCsvRowsFixture("sample_no_loja.csv");
-    const { header, rows } = detectHeaderAndRows(rawRows);
+    expect(() => inferColumns(["Número da Proposta", "Situação"])).toThrowError(ColumnNotFoundError);
+    expect(() => inferColumns(["Número da Proposta", "Situação"])).toThrowError("Coluna cnpj não encontrada");
 
-    expect(header).toContain("Data da proposta");
-    expect(header).toContain("CNPJ");
-    expect(header).not.toContain("Loja");
-
-    const normalized = normalizeRows(header, rows);
-    expect(normalized.length).toBeGreaterThan(0);
-    expect(normalized[0]?.store).toBe("LOJA 16 Cerro Azul - Centro");
+    expect(() => inferColumns(["CNPJ", "Número da Proposta"])).toThrowError(ColumnNotFoundError);
+    expect(() => inferColumns(["CNPJ", "Número da Proposta"])).toThrowError("Coluna situação não encontrada");
   });
 
   it("normaliza CNPJ (com e sem máscara) e mantém mapeamento de loja", () => {
-    const header = ["Data da proposta", "CNPJ", "CPF", "Situação", "Ticket 1ª compra"];
+    const header = ["CNPJ", "Número da Proposta", "Situação", "Data de entrada", "CPF"];
     const rows = [
-      ["12/12/2025", "07.316.252/0011-45", "111.***.***-11", "Aprovado", "R$ 10,00"],
-      ["12/12/2025", "07316252001145", "222.***.***-22", "Aprovado", "R$ 10,00"],
-      ["12/12/2025", " 07 316 252 0011 45 ", "333.***.***-33", "Aprovado", "R$ 10,00"],
-      ["12/12/2025", "7.316.252/0011-45", "444.***.***-44", "Aprovado", "R$ 10,00"],
+      ["07.316.252/0011-45", "1001", "Aprovado", "12/12/2025", "111.***.***-11"],
+      ["07316252001145", "1002", "Aprovado", "12/12/2025", "222.***.***-22"],
+      [" 07 316 252 0011 45 ", "1003", "Aprovado", "12/12/2025", "333.***.***-33"],
+      ["7.316.252/0011-45", "1004", "Aprovado", "12/12/2025", "444.***.***-44"],
     ];
 
     const normalized = normalizeRows(header, rows);
     expect(normalized.length).toBe(4);
     expect(new Set(normalized.map((r) => r.store))).toEqual(new Set(["LOJA 16 Cerro Azul - Centro"]));
     expect(new Set(normalized.map((r) => r.cnpj))).toEqual(new Set(["07.316.252/0011-45"]));
+    expect(new Set(normalized.map((r) => r.date))).toEqual(new Set(["2025-12-12"]));
   });
 
-  it("não confunde linha 'quase header' sem colunas obrigatórias (ex.: Ticket)", async () => {
-    const rawRows = await loadCsvRowsFixture("sample_misleading_preamble.csv");
+  it("não confunde linha de preâmbulo com Ticket quando faltar Número da Proposta", async () => {
+    const rawRows = await loadCsvRowsFixture("sample_cards_misleading_preamble.tsv");
     const { header, headerIndex } = detectHeaderAndRows(rawRows);
 
     expect(headerIndex).toBe(4);
-    expect(header).toContain("Ticket 1ª compra");
+    expect(header).toContain("CNPJ");
+    expect(header).toContain("Número da Proposta");
+    expect(header).toContain("Situação");
   });
 });
+
