@@ -26,6 +26,14 @@ export async function GET() {
     }
 
     const json = await res.json();
+
+    // Sanitize meta debug fields (Option A)
+    if (json && typeof json === "object" && "meta" in json && typeof json.meta === "object" && json.meta) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { headers, skippedPreambleRows, ...safeMeta } = json.meta as Record<string, unknown>;
+      (json as Record<string, unknown>).meta = safeMeta;
+    }
+
     return NextResponse.json(json, {
       status: 200,
       headers: { "Cache-Control": "no-store" },

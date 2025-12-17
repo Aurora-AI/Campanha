@@ -29,5 +29,30 @@ describe("integration: GET /api/data", () => {
     const json = await res.json();
     expect(json).toEqual(blobPayload);
   });
+
+  it("sanitiza campos de debug do meta (headers, skippedPreambleRows)", async () => {
+    const blobPayload = await loadFixtureJson("sample_payload.json");
+    // Inject debug fields
+    const payloadWithDebug = {
+      ...blobPayload,
+      meta: {
+        ...blobPayload.meta,
+        headers: ["col1", "col2"],
+        skippedPreambleRows: 3,
+      },
+    };
+
+    (head as any).mockResolvedValueOnce({ url: "http://localhost/blob/campanha-data.json" });
+    global.fetch = vi.fn().mockResolvedValueOnce(okJson(payloadWithDebug));
+
+    const res = await dataHandler();
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    // Should match original payload (without debug fields)
+    expect(json).toEqual(blobPayload);
+    expect(json.meta).not.toHaveProperty("headers");
+    expect(json.meta).not.toHaveProperty("skippedPreambleRows");
+  });
 });
 

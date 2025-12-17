@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import Papa from "papaparse";
+import { detectHeaderAndRows } from "@/lib/metrics/normalize";
 
 export const dynamic = "force-dynamic";
 
@@ -28,15 +29,19 @@ export async function POST(req: Request) {
     }
 
     const csvText = await file.text();
-    const rows = await parseCsvText(csvText);
+    const rawRows = await parseCsvText(csvText);
+    const { header, rows, headerIndex } = detectHeaderAndRows(rawRows);
+    const strippedRows = [header, ...rows];
 
     const payload = {
       meta: {
         source: file.name,
         uploadedAt: new Date().toISOString(),
-        rows: rows.length,
+        rows: strippedRows.length,
+        skippedPreambleRows: headerIndex,
+        headers: header,
       },
-      data: { rows },
+      data: { rows: strippedRows },
     };
 
     const blob = await put("campanha-data.json", JSON.stringify(payload), {
@@ -47,7 +52,12 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(
-      { ok: true, rows: payload.meta.rows, url: blob.url },
+      {
+        ok: true,
+        rows: payload.meta.rows,
+        skippedPreambleRows: payload.meta.skippedPreambleRows,
+        url: blob.url,
+      },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
