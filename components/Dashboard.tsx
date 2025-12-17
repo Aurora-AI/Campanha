@@ -100,10 +100,6 @@ export default function CalceleveDashboard() {
     const pct = delta.pct == null ? "—" : `${(delta.pct * 100).toFixed(1)}%`;
     return `${abs} (${pct})`;
   };
-  const fmtMoney = (v: number | null | undefined) =>
-    v == null
-      ? "—"
-      : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   return (
     <section className="w-full space-y-10">
@@ -142,7 +138,7 @@ export default function CalceleveDashboard() {
       {/* Upload Section */}
       <div className="bg-white rounded-4xl p-8 shadow-sm border border-gray-100 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Painel Aceleração 2025</h1>
-          <p className="text-gray-500 mb-8">Importe o CSV diário para apuração de metas e grupos.</p>
+          <p className="text-gray-500 mb-8">Importe o relatório de propostas/cartões para apuração de captação.</p>
         
         {!data && (
           <label className="inline-flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 px-12 py-10 transition hover:bg-gray-100 hover:border-gray-300">
@@ -271,10 +267,6 @@ export default function CalceleveDashboard() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100">
-                      <div className="text-xs font-bold tracking-widest text-blue-700 uppercase">Ticket médio 1ª compra (aprovados)</div>
-                      <div className="mt-1 text-lg font-black text-blue-900">{fmtMoney(s.firstPurchaseTicketAvg)}</div>
-                    </div>
                     <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
                       <div className="text-xs font-bold tracking-widest text-amber-700 uppercase">Pendências</div>
                       <div className="mt-1 text-lg font-black text-amber-900">{s.pending.total}</div>
