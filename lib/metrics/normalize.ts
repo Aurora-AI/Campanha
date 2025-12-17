@@ -1,4 +1,5 @@
 import { formatIsoDateUTC, parseDateCellUTC } from "./time";
+import { CNPJ_MAP } from "../cnpjMap";
 
 export type NormalizedStatus = "APROVADO" | "REPROVADO" | `PENDENTE:${string}`;
 
@@ -48,6 +49,23 @@ export const normalizeText = (value: string) =>
     .trim()
     .replace(/\s+/g, " ");
 
+const normalizeCnpj = (value: string): string | undefined => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return undefined;
+
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 13) {
+    const padded = digits.padStart(14, "0");
+    return `${padded.slice(0, 2)}.${padded.slice(2, 5)}.${padded.slice(5, 8)}/${padded.slice(8, 12)}-${padded.slice(12, 14)}`;
+  }
+  if (digits.length !== 14) return raw;
+
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+};
+
+const storeFromCnpj = (cnpj: string | undefined): string | undefined =>
+  cnpj ? CNPJ_MAP[cnpj] ?? `CNPJ ${cnpj}` : undefined;
+
 const findColumnIndex = (headers: string[], patterns: string[]): number | undefined => {
   const normalized = headers.map(normalizeText);
   for (let i = 0; i < normalized.length; i++) {
@@ -67,7 +85,7 @@ const requireColumn = (headers: string[], patterns: string[], label: string): nu
 
 export type ColumnIndexes = {
   date: number;
-  store: number;
+  store?: number;
   cnpj: number;
   cpf: number;
   status: number;
@@ -92,7 +110,7 @@ export function inferColumns(headers: string[]): ColumnIndexes {
     "data da proposta"
   );
 
-  const store = requireColumn(headers, ["loja", "nome da loja", "filial", "estabelecimento", "unidade"], "loja");
+  const store = findColumnIndex(headers, ["loja", "nome da loja", "filial", "estabelecimento", "unidade"]);
   const cnpj = requireColumn(headers, ["cnpj"], "cnpj");
   const cpf = requireColumn(headers, ["cpf"], "cpf");
   const status = requireColumn(headers, ["situacao", "situação", "status"], "situação");
@@ -115,10 +133,26 @@ export function inferColumns(headers: string[]): ColumnIndexes {
   return { date, store, cnpj, cpf, status, ticket, ...(groupIdx != null ? { group: groupIdx } : {}) };
 }
 
-export function detectHeaderAndRows(rawRows: string[][]): { header: string[]; rows: string[][] } {
+export function detectHeaderAndRows(
+  rawRows: string[][]
+): { header: string[]; rows: string[][]; headerIndex: number } {
   if (!Array.isArray(rawRows) || rawRows.length === 0) throw new DatasetError("Dataset vazio.");
 
-  const scanLimit = Math.min(rawRows.length, 25);
+  const scanLimit = Math.min(rawRows.length, 200);
+  for (let i = 0; i < scanLimit; i++) {
+    const row = rawRows[i] ?? [];
+    if (!Array.isArray(row) || row.length === 0) continue;
+
+    const header = row.map((c) => String(c ?? "").trim());
+    try {
+      inferColumns(header);
+      const rows = rawRows.slice(i + 1);
+      return { header, rows, headerIndex: i };
+    } catch {
+      // ignore
+    }
+  }
+
   let bestIndex = 0;
   let bestScore = -1;
 
@@ -142,7 +176,7 @@ export function detectHeaderAndRows(rawRows: string[][]): { header: string[]; ro
 
   const header = (rawRows[bestIndex] ?? []).map((c) => String(c ?? "").trim());
   const rows = rawRows.slice(bestIndex + 1);
-  return { header, rows };
+  return { header, rows, headerIndex: bestIndex };
 }
 
 export function normalizeStatus(raw: string): NormalizedStatus {
@@ -208,16 +242,17 @@ export function normalizeRows(header: string[], rows: string[][]): NormalizedRow
   for (const row of rows) {
     if (!Array.isArray(row) || row.length === 0) continue;
 
-    const store = String(row[cols.store] ?? "").trim();
-    if (!store) continue;
-
     const dateRaw = String(row[cols.date] ?? "");
     const dateObj = parseDateCellUTC(dateRaw);
     if (!dateObj) continue;
 
     const status = normalizeStatus(String(row[cols.status] ?? ""));
 
-    const cnpj = String(row[cols.cnpj] ?? "").trim() || undefined;
+    const cnpj = normalizeCnpj(String(row[cols.cnpj] ?? ""));
+    const storeFromColumn = cols.store != null ? String(row[cols.store] ?? "").trim() : "";
+    const store = storeFromColumn || storeFromCnpj(cnpj) || "";
+    if (!store) continue;
+
     const cpfMasked = String(row[cols.cpf] ?? "").trim() || undefined;
     const group = cols.group != null ? String(row[cols.group] ?? "").trim() || undefined : undefined;
     const firstPurchaseTicket = parseNumberPtBR(String(row[cols.ticket] ?? ""));
@@ -235,4 +270,3 @@ export function normalizeRows(header: string[], rows: string[][]): NormalizedRow
 
   return out;
 }
-
