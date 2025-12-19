@@ -1,0 +1,117 @@
+Manual de Construção Aurora — Versão 4.0 (Edição Gênese)
+Documento Oficial de Engenharia — Projeto Álvaro Status: 🟢 VIGENTE (Substitui v3.3) Arquitetura: Monorepo Biológico (Aurora Ecosystem) Doutrina: Homeostase Digital & Trustware Compatibilidade: Python 3.12+ / Node 20+ / Docker Compose V2
+
+1. O Conceito: Organismo Digital
+Diferente de softwares tradicionais, o Projeto Álvaro é tratado como um organismo vivo. A engenharia deve refletir biologia.
+
+Não construímos "módulos", construímos "órgãos".
+
+Não corrigimos "bugs", curamos "doenças" (Homeostase).
+
+Não permitimos "crescimento desordenado", prevenimos "câncer" (Trustware).
+
+2. Estrutura do Projeto (O Esqueleto)
+O projeto deve residir em um único repositório git (Monorepo) para garantir coerência genética.
+
+A Árvore de Diretórios Obrigatória
+Plaintext
+
+Aurora-Ecosystem/
+├── .devcontainer/              # Ambiente de Desenvolvimento Padronizado
+├── .github/                    # CI/CD (Workflows de Teste e Build)
+├── apps/                       # [ÓRGÃOS VITAIS] Serviços Executáveis
+│   ├── butantan-shield/        # (Imunologia) Gateway FastAPI + Circuit Breaker
+│   ├── alvaro-core/            # (Identidade) Orquestrador Python + Ollama Client
+│   ├── aurora-vision/          # (Sentidos) Agentes de Navegação e Computer Use
+│   └── mycelium-front/         # (Pele) Interface Next.js (React)
+├── libs/                       # [SISTEMA NERVOSO] Bibliotecas Compartilhadas
+│   ├── elysian-brain/          # (Cognição) Lógica Pura, Árvores de Decisão (Stateless)
+│   └── trustware/              # (Defesa) Schemas Zod/Pydantic, Logs e Criptografia
+├── docker/                     # [AMBIENTE]
+│   └── compose.yml             # O "Feitiço da Vida" (Orquestração Local)
+├── pyproject.toml              # Gerenciador de Dependências Python (Poetry Workspace)
+└── package.json                # Gerenciador de Dependências JS (Bun/npm Workspaces)
+3. Definição dos Órgãos (Responsabilidades)
+🛡️ 3.1. Apps: Butantan Shield (Sistema Imunológico)
+Função: Proteger o organismo de inputs tóxicos e sobrecarga.
+
+Regra de Ouro: NENHUMA requisição externa chega ao Álvaro sem passar por aqui.
+
+Tecnologia: FastAPI, Redis (Rate Limit), Tenacity (Retries).
+
+Comportamento: Se o Álvaro estiver lento, o Butantan corta a conexão (Circuit Breaker Aberto) para evitar falência múltipla de órgãos.
+
+🧬 3.2. Apps: Álvaro Core (O Organismo)
+Função: Processar intenções, manter estado e memória.
+
+Restrição de Hardware: CPU-Only Build. O Álvaro NÃO contém o modelo de IA. Ele se conecta via rede a um "Cérebro Externo" (Container Ollama ou API).
+
+Dependência: Consome a libs/elysian-brain para estruturar o pensamento antes de agir.
+
+👁️ 3.3. Apps: Aurora Vision (Sentidos)
+Função: Interagir com o mundo não-API (Sites, PDFs, Telas).
+
+Tecnologia: Playwright, Docker-in-Docker (Sandbox), Computer Use Drivers.
+
+Segurança: Roda em isolamento total. Se pegar um vírus navegando, o container é incinerado e recriado.
+
+🧠 3.4. Libs: Elysian Brain (Cognição Pura)
+Função: Biblioteca de algoritmos de raciocínio (Tree of Thoughts).
+
+Regra: Stateless. Não acessa banco de dados. Recebe dados -> Pensa -> Devolve decisão. É o "software" que roda no hardware do Álvaro.
+
+4. Doutrina Técnica (Regras de Construção)
+4.1. Production-First & Trustware
+Validação Absoluta: Nenhuma função pública recebe dados sem um Schema (Pydantic/Zod) definido.
+
+Logs Assinados: Todo log deve ser JSON estruturado contendo { "organ": "alvaro", "action": "decision", "status": "success", "signature": "..." }.
+
+Testes de Sobrevivência: O CI/CD não deve apenas testar se "funciona", mas se "resiste" (Testes de Carga e Segurança).
+
+4.2. Homeostase Digital (Auto-Cura)
+Todo código crítico deve implementar o padrão Try-Reflect-Retry:
+
+Try: Tenta executar a ação.
+
+Catch: Se falhar, captura o erro.
+
+Reflect: (Opcional) Pergunta ao LLM "Por que isso falhou e como corrijo?".
+
+Retry: Tenta novamente com os parâmetros corrigidos.
+
+Fail: Se falhar 3x, escala para o Butantan (Erro Crítico).
+
+4.3. Ambiente CPU-Only (Compatibilidade Universal)
+As imagens Docker de produção (apps/) NÃO devem depender de drivers NVIDIA/CUDA.
+
+A inferência pesada (LLM) deve ser delegada a serviços externos (Ollama na rede local ou Azure OpenAI).
+
+Isso garante que o Álvaro rode em qualquer servidor (Linux, Mac, Windows) barato.
+
+5. Protocolo de Comunicação (O Sistema Nervoso)
+Frontend (Mycelium) -> Shield (Butantan): REST/WebSocket (Protegido por JWT).
+
+Shield -> Core (Álvaro): gRPC ou REST Interno (Rede Docker Segura).
+
+Core -> Vision: Fila de Tarefas (Redis/BullMQ) ou REST Assíncrono.
+
+Core -> LLM (Ollama): HTTP Standard (Ollama API).
+
+6. Procedimento de Gênese (Setup)
+Para dar vida ao sistema, o comando padrão deve ser:
+
+Bash
+
+# 1. Instalação das dependências do corpo
+poetry install  # Backend
+npm install     # Frontend
+
+# 2. Invocação dos serviços vitais
+docker compose up -d --build
+
+# 3. Verificação de Sinais Vitais
+./scripts/healthcheck.sh
+7. Assinaturas e Validação
+Autoridade Técnica: Jules (Estrategista Digital) Autoridade Executiva: Rodrigo César Winhaski (Comandante) Vigência: A partir de Dezembro de 2025.
+
+A violação destas diretrizes constitui risco biológico ao projeto e resultará na rejeição automática do Pull Request.

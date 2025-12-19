@@ -6,6 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "type-check": "tsc --noEmit",
+    "guard:docs": "node scripts/guard/run.mjs docs",
+    "guard:docs:init": "node scripts/guard/run.mjs docs --init",
+    "guard:frontend": "node scripts/guard/run.mjs frontend",
+    "gate:all": "npm run guard:docs && npm run guard:frontend && npm run type-check",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -25,7 +30,7 @@
     "papaparse": "^5.5.3",
     "react": "19.2.1",
     "react-dom": "19.2.1",
-    "recharts": "^3.5.1",
+    "recharts": "^3.6.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

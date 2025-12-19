@@ -1,0 +1,25 @@
+
+> aurora-campaign@0.1.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90mC:/Aurora/Campanha[39m
+
+ [32m✓[39m __tests__/publisher.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 338[2mms[22m[39m
+ [32m✓[39m tests/unit/time.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 161[2mms[22m[39m
+ [32m✓[39m tests/integration/api.data.integration.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 129[2mms[22m[39m
+ [32m✓[39m tests/unit/compute.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 105[2mms[22m[39m
+ [32m✓[39m __tests__/api-routes.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32m✓[39m tests/unit/normalize.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 176[2mms[22m[39m
+ [32m✓[39m tests/integration/api.metrics.integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m tests/contract/metrics.contract.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 73[2mms[22m[39m
+ [32m✓[39m tests/integration/dashboard.render.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 594[2mms[22m[39m
+     [33m[2m✓[22m[39m renderiza headline, ranking e ao menos 1 card de loja [33m 584[2mms[22m[39m
+ [32m✓[39m tests/integration/cover.render.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m renderiza home Cognitive Puzzle (client) [33m 357[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m36 passed[39m[22m[90m (36)[39m
+[2m   Start at [22m 14:08:38
+[2m   Duration [22m 18.57s[2m (transform 11.32s, setup 39.41s, import 20.38s, tests 2.19s, environment 91.74s)[22m
+

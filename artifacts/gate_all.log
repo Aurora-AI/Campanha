@@ -1,0 +1,23 @@
+
+> aurora-campaign@0.1.0 gate:all
+> npm run guard:docs && npm run guard:frontend && npm run type-check
+
+
+> aurora-campaign@0.1.0 guard:docs
+> node scripts/guard/run.mjs docs
+
+[GUARD:DOCS] OK   - Documento validado: Manual_de_Construcao_Aurora_v4.0.txt
+[GUARD:DOCS] OK   - Documento validado: MANUAL_DE_CONSTRUCAO_MYCELIUM_FRONTEND_v1.0.md
+[GUARD:DOCS] OK   - Documento validado: ADR-001-Instituicao-Manual-Frontend-Mycelium.md
+[GUARD:DOCS] OK   - Documento validado: guia_complementar_cognitive_puzzle.md
+[GUARD:DOCS] OK   - Todos os documentos normativos estão presentes e íntegros.
+
+> aurora-campaign@0.1.0 guard:frontend
+> node scripts/guard/run.mjs frontend
+
+[GUARD:FRONTEND] OK   - Schema encontrado: schemas/hero.schema.ts
+[GUARD:FRONTEND] OK   - Contratos básicos de frontend validados (heurístico): sem variantes de estado e sem tokens de lógica em UI.
+
+> aurora-campaign@0.1.0 type-check
+> tsc --noEmit
+

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import CalceleveDashboard from "@/components/Dashboard";
+import CalceleveDashboard from "@/components/_legacy/Dashboard";
 
 export default function DashboardPage() {
   return (

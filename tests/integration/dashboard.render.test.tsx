@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 
-import Dashboard from "@/components/Dashboard";
+import Dashboard from "@/components/_legacy/Dashboard";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { server } from "../helpers/mswServer";
 import { loadFixtureJson } from "../helpers/makeRows";

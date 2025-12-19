@@ -1,0 +1,46 @@
+{
+	"Nova Ordem de Serviço (Aurora)": {
+		"prefix": "nova-os",
+		"body": [
+			"# 🧬 OS-${1:TITULO_CURTO}-001",
+			"",
+			"**ID:** OS-${1:TITULO_CURTO}-001",
+			"**Projeto:** ${2|Aurora,Mycelium,Alvaro,Infra|}",
+			"**Data:** $CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE",
+			"**Autor:** Rodrigo",
+			"",
+			"## 1. O OBJETIVO",
+			"${3:Descreva o objetivo tático.}",
+			"",
+			"## 2. CONTEXTO E RISCOS (Bloco Cognitivo)",
+			"- **Motivação:** ${4:Por que agora?}",
+			"- **Risco Técnico:** ${5:O que pode quebrar?}",
+			"",
+			"## 3. PLANO DE EXECUÇÃO",
+			"1. ${6:Passo 1}",
+			"",
+			"---",
+			"*Aguardando Execução*"
+		],
+		"description": "Template Platinum de Abertura de OS"
+	},
+	"Fechar Ordem de Serviço (Memória)": {
+		"prefix": "fechar-os",
+		"body": [
+			"",
+			"---",
+			"",
+			"## 5. RELATÓRIO DE ENCERRAMENTO",
+			"**Data Fecho:** $CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE",
+			"**Status Final:** ${1|✅ SUCESSO,⚠️ SUCESSO PARCIAL,❌ FALHA/ROLLBACK|}",
+			"",
+			"### 🧠 Lições Aprendidas (Obrigatório se houve erro)",
+			"- **O Erro:** ${2:Nada a reportar}",
+			"- **A Solução:** ${3:Execução nominal}",
+			"- **Regra para o Futuro:** ${4:Nenhuma regra nova}",
+			"",
+			"**Assinatura:** Rodrigo"
+		],
+		"description": "Encerramento com validação lógica de erro."
+	}
+}

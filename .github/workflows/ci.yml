@@ -22,6 +22,15 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Guard (Docs)
+        run: npm run guard:docs
+
+      - name: Guard (Frontend)
+        run: npm run guard:frontend
+
+      - name: Type Check
+        run: npm run type-check
+
       - name: Lint
         run: npm run lint
 
@@ -33,4 +42,3 @@ jobs:
 
       - name: Coverage
         run: npm run test:coverage
-
