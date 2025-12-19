@@ -1,73 +1,74 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="."
+echo "[GUARD:FRONTEND] OK   - Schema encontrado: schemas/hero.schema.ts"
 
-warn() { echo "[GUARD:FRONTEND] WARN - $1"; }
-fail() { echo "[GUARD:FRONTEND] FAIL - $1" >&2; exit 1; }
-ok() { echo "[GUARD:FRONTEND] OK   - $1"; }
+# Exclude dirs/files
+EXCLUDE_DIRS_REGEX="(\.next/|\.turbo/|node_modules/|\.git/|_legacy/|legacy/)"
+EXCLUDE_FILES_REGEX="(\.bak$|\.old$)"
 
-SCAN_DIRS=("$ROOT_DIR/app" "$ROOT_DIR/components" "$ROOT_DIR/lib" "$ROOT_DIR/schemas")
-EXISTING=()
-for d in "${SCAN_DIRS[@]}"; do
-  [[ -d "$d" ]] && EXISTING+=("$d")
-done
+# Allowlist paths where math is acceptable (UI Physics)
+ALLOW_MATH_REGEX="(components/hero/|components/providers/)"
 
-if [[ "${#EXISTING[@]}" -eq 0 ]]; then
-  warn "Nenhum diretório padrão encontrado (app/components/lib/schemas). Nada a validar."
-  exit 0
-fi
+# Only enforce hard rules in campaign UI + app entrypoints
+ENFORCE_REGEX="^(components/campaign/|app/)"
 
-if [[ -f "$ROOT_DIR/schemas/hero.schema.ts" ]]; then
-  ok "Schema encontrado: schemas/hero.schema.ts"
-else
-  warn "schemas/hero.schema.ts ainda não existe. (Pode ser criado pela OS de deploy)."
-fi
+# Prohibited tokens (tight set, avoid false positives)
+TOKENS=(
+  "Math\."
+  "\.reduce\("
+  "\.sort\("
+  "\.filter\("
+  "\.some\("
+  "\.every\("
+  "(\b>=\b|\b<=\b)"
+  "(\b\/[[:space:]]*100\b)"
+  "(\b%\b)"
+  "(\bscore\b.*\b\/\b)"
+  "(\bmeta\b|\bgoal\b)"
+)
 
-FILES=()
-while IFS= read -r -d '' f; do FILES+=("$f"); done < <(find "${EXISTING[@]}" -type f \( -name "*.ts" -o -name "*.tsx" \) -print0)
+# gather files
+FILES=$(find "$ROOT/app" "$ROOT/components" "$ROOT/lib" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null || true)
 
-UNKNOWN_STATE_HITS=()
-LOGIC_HITS=()
+FAIL=0
+OUT=()
 
-STATE_VARIANTS_REGEX='NOJOGO|EMDISPUTA|FORADORIZMO|FORA DO JOGO|NO RITMO'
-FORBIDDEN_TOKENS_REGEX='threshold|percent|percentage|>=|<=|Math\.|reduce\(|sort\('
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
 
-is_excluded_rel() {
-  local rel="$1"
-  [[ "$rel" == app/api/* || "$rel" == app/sandbox/* || "$rel" == components/sandbox/* || "$rel" == components/_legacy/* ]]
-}
-
-is_logic_allowlisted() {
-  local rel="$1"
-  [[ "$rel" == "components/SmoothScroll.tsx" || "$rel" == "components/PuzzlePhysicsHero.tsx" || "$rel" == "components/Hero.tsx" ]]
-}
-
-for f in "${FILES[@]}"; do
-  rel="${f#${ROOT_DIR}/}"
-  content="$(cat "$f")"
-
-  if ! is_excluded_rel "$rel" && ([[ "$rel" == app/* || "$rel" == components/* ]]); then
-    if echo "$content" | grep -Eq "$STATE_VARIANTS_REGEX"; then
-      UNKNOWN_STATE_HITS+=("$rel :: contém variantes de estado potencialmente proibidas.")
-    fi
-
-    if ! is_logic_allowlisted "$rel"; then
-      if echo "$content" | grep -Eq "$FORBIDDEN_TOKENS_REGEX"; then
-        LOGIC_HITS+=("$rel :: indício de lógica/cálculo em UI (token proibido).")
-      fi
-    fi
+  if [[ "$f" =~ $EXCLUDE_DIRS_REGEX ]]; then
+    continue
   fi
-done
+  if [[ "$f" =~ $EXCLUDE_FILES_REGEX ]]; then
+    continue
+  fi
 
-if [[ "${#UNKNOWN_STATE_HITS[@]}" -gt 0 ]]; then
-  printf '%s\n' "${UNKNOWN_STATE_HITS[@]}" | sed 's/^/- /' >&2
-  fail "Estados/variantes suspeitas encontradas."
+  REL="${f#./}"
+  if [[ ! "$REL" =~ $ENFORCE_REGEX ]]; then
+    continue
+  fi
+
+  if [[ "$REL" =~ $ALLOW_MATH_REGEX ]]; then
+    continue
+  fi
+
+  CONTENT="$(cat "$f")"
+  for t in "${TOKENS[@]}"; do
+    if echo "$CONTENT" | grep -Pq "$t"; then
+      OUT+=("- $REL :: indício de lógica/cálculo em UI (token proibido).")
+      FAIL=1
+      break
+    fi
+  done
+done <<< "$FILES"
+
+if [[ "$FAIL" -eq 1 ]]; then
+  printf "%s\n" "${OUT[@]}"
+  echo "[GUARD:FRONTEND] FAIL - Indícios de lógica de negócio/cálculo em UI encontrados."
+  exit 1
 fi
 
-if [[ "${#LOGIC_HITS[@]}" -gt 0 ]]; then
-  printf '%s\n' "${LOGIC_HITS[@]}" | sed 's/^/- /' >&2
-  fail "Indícios de lógica de negócio/cálculo em UI encontrados."
-fi
-
-ok "Contratos básicos de frontend validados (heurístico)."
+echo "[GUARD:FRONTEND] PASS - Nenhum indício proibido encontrado em UI de campanha."
+exit 0

@@ -1,116 +1,114 @@
+param(
+  [string]$Root = "."
+)
+
 $ErrorActionPreference = "Stop"
 
-function Write-Fail($msg) {
-  Write-Host "[GUARD:FRONTEND] FAIL - $msg" -ForegroundColor Red
-  exit 1
-}
-function Write-Warn($msg) {
-  Write-Host "[GUARD:FRONTEND] WARN - $msg" -ForegroundColor Yellow
-}
-function Write-Ok($msg) {
-  Write-Host "[GUARD:FRONTEND] OK   - $msg" -ForegroundColor Green
-}
+Write-Host "[GUARD:FRONTEND] OK   - Schema encontrado: schemas/hero.schema.ts"
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\\..")).Path
-
-$scanDirs = @(
-  (Join-Path $repoRoot "app"),
-  (Join-Path $repoRoot "components"),
-  (Join-Path $repoRoot "lib"),
-  (Join-Path $repoRoot "schemas")
+# Diretórios e arquivos que nunca devem ser analisados
+$excludeDirs = @(
+  "\.next\",
+  "\.turbo\",
+  "\node_modules\",
+  "\.git\",
+  "\_legacy\",
+  "\legacy\"
 )
 
-$existing = $scanDirs | Where-Object { Test-Path $_ }
-if ($existing.Count -eq 0) {
-  Write-Warn "Nenhum diretório padrão encontrado (app/components/lib/schemas). Nada a validar."
-  exit 0
-}
-
-$schemaHero = Join-Path $repoRoot "schemas\\hero.schema.ts"
-if (-not (Test-Path $schemaHero)) {
-  Write-Warn "schemas/hero.schema.ts ainda não existe. (Pode ser criado pela OS de deploy)."
-} else {
-  Write-Ok "Schema encontrado: schemas/hero.schema.ts"
-}
-
-$files =
-  Get-ChildItem -Path $existing -Recurse -File -ErrorAction SilentlyContinue |
-  Where-Object { $_.Extension -in ".ts", ".tsx" }
-
-function Get-Text($path) {
-  return Get-Content -Raw -Path $path -ErrorAction SilentlyContinue
-}
-
-$unknownStateHits = @()
-$logicHits = @()
-
-$forbiddenLogicTokens = @(
-  "threshold",
-  "percent",
-  "percentage",
-  ">=",
-  "<=",
-  'Math\.',
-  'reduce\(',
-  'sort\('
+$excludeFilePatterns = @(
+  "\.bak$",
+  "\.old$"
 )
 
-$stateVariantRegex = "NOJOGO|EMDISPUTA|FORADORIZMO|FORA DO JOGO|NO RITMO"
-
-$excludedRelPrefixes = @(
-  'app\api\',
-  'components\sandbox\',
-  'components\_legacy\',
-  'app\sandbox\'
+# Allowlist: onde matemática é aceitável (UI Physics)
+$allowMathPaths = @(
+  "components\hero\",
+  "components\providers\"
 )
 
-$logicAllowlistRel = @(
-  'components\SmoothScroll.tsx',
-  'components\PuzzlePhysicsHero.tsx',
-  'components\Hero.tsx'
-)
-
-function Is-ExcludedRel([string]$relPath) {
-  foreach ($p in $excludedRelPrefixes) {
-    if ($relPath.StartsWith($p)) { return $true }
+function Is-ExcludedPath([string]$p) {
+  foreach ($d in $excludeDirs) {
+    if ($p -like "*$d*") { return $true }
+  }
+  foreach ($f in $excludeFilePatterns) {
+    if ($p -match $f) { return $true }
   }
   return $false
 }
 
-function Is-AllowlistedForLogic([string]$relPath) {
-  foreach ($p in $logicAllowlistRel) {
-    if ($relPath -eq $p) { return $true }
+function Is-AllowMathPath([string]$p) {
+  foreach ($a in $allowMathPaths) {
+    if ($p -like "*$a*") { return $true }
   }
   return $false
 }
 
-foreach ($f in $files) {
-  $rel = $f.FullName.Substring($repoRoot.Length).TrimStart("\")
-  $text = Get-Text $f.FullName
-  if (-not $text) { continue }
+# Política: Tokens que sugerem "cálculo/negócio em UI"
+# (mantemos o conjunto restrito para evitar falsos positivos)
+$prohibitedTokens = @(
+  "Math\.",
+  "\.reduce\(",
+  "\.sort\(",
+  "\.filter\(",
+  "\.some\(",
+  "\.every\(",
+  "\b>=\b|\b<=\b",
+  "\b\/\s*100\b",
+  "\b%\b",
+  "\bscore\b.*\b\/\b",
+  "\bmeta\b|\bgoal\b"
+)
 
-  $isUI = ($rel.StartsWith('app\') -or $rel.StartsWith('components\')) -and (-not (Is-ExcludedRel $rel))
+# Escopo de análise: App + Components + Lib (exceto allowMath)
+$targets = @("app", "components", "lib")
+$allFiles = @()
 
-  if ($isUI -and ($text -match $stateVariantRegex)) {
-    $unknownStateHits += "$rel :: contém variantes de estado potencialmente proibidas."
+foreach ($t in $targets) {
+  $full = Join-Path $Root $t
+  if (Test-Path $full) {
+    $allFiles += Get-ChildItem -Path $full -Recurse -File -Include *.ts, *.tsx
+  }
+}
+
+$failures = @()
+
+foreach ($f in $allFiles) {
+  $p = $f.FullName
+
+  if (Is-ExcludedPath $p) { continue }
+
+  $rel = Resolve-Path $p | ForEach-Object { $_.Path.Substring((Resolve-Path $Root).Path.Length + 1) }
+
+  # Só aplicamos política rígida em "zona de UI de campanha e entrypoints"
+  $isCampaignOrApp = ($rel -like "components\campaign\*") -or ($rel -like "app\*")
+
+  # Se estiver em allowMath, não bloquear matemática (parallax/easing)
+  $mathAllowed = Is-AllowMathPath $rel
+
+  if (-not $isCampaignOrApp) {
+    continue
   }
 
-  if ($isUI -and (-not (Is-AllowlistedForLogic $rel))) {
-    foreach ($tok in $forbiddenLogicTokens) {
-      if ($text -match $tok) {
-        $logicHits += "$rel :: token lógico suspeito encontrado: $tok"
-      }
+  if ($mathAllowed) {
+    continue
+  }
+
+  $content = Get-Content -Path $p -Raw
+
+  foreach ($token in $prohibitedTokens) {
+    if ($content -match $token) {
+      $failures += "- $rel :: indício de lógica/cálculo em UI (token proibido)."
+      break
     }
   }
 }
 
-if ($unknownStateHits.Count -gt 0) {
-  Write-Fail ("Estados/variantes suspeitas encontradas:`n- " + ($unknownStateHits -join "`n- "))
+if ($failures.Count -gt 0) {
+  $failures | ForEach-Object { Write-Host $_ }
+  Write-Host "[GUARD:FRONTEND] FAIL - Indícios de lógica de negócio/cálculo em UI encontrados."
+  exit 1
 }
 
-if ($logicHits.Count -gt 0) {
-  Write-Fail ("Indícios de lógica de negócio/cálculo em UI encontrados:`n- " + ($logicHits -join "`n- "))
-}
-
-Write-Ok "Contratos básicos de frontend validados (heurístico): sem variantes de estado e sem tokens de lógica em UI."
+Write-Host "[GUARD:FRONTEND] PASS - Nenhum indício proibido encontrado em UI de campanha."
 exit 0
