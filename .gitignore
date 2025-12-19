@@ -42,3 +42,5 @@ artifacts/alvaro_ingest.log
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+calceleve_admin_token_2025_seguro.txt
