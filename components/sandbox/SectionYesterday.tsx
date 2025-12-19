@@ -13,8 +13,8 @@ export default function SectionYesterday() {
 
   return (
     <section className="relative w-full py-32 bg-white flex flex-col items-center justify-center">
-      <div className="w-[min(1400px,92vw)] grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-        
+      <div className="w-[min(1400px,92vw)] grid grid-cols-1 md:grid-cols-2 gap-16 items-center min-w-0">
+
         {/* Left: Big Number Block */}
         <FadeIn>
             <div className="bg-stone-50 p-12 rounded-sm border-l-4 border-black">
@@ -36,27 +36,27 @@ export default function SectionYesterday() {
         </FadeIn>
 
         {/* Right: Line Chart Draw */}
-        <div ref={ref} className="h-96 w-full relative">
+        <div ref={ref} className="h-96 w-full min-w-0 relative">
              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data.timeline}>
-                    <XAxis 
-                        dataKey="day" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fill: '#a8a29e', fontSize: 12, fontFamily: 'var(--font-inter)' }} 
+                    <XAxis
+                        dataKey="day"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#a8a29e', fontSize: 12, fontFamily: 'var(--font-inter)' }}
                         dy={10}
                     />
-                    <Tooltip 
+                    <Tooltip
                         contentStyle={{ backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '0px' }}
                         itemStyle={{ color: '#fff' }}
                         cursor={{ stroke: '#e5e5e5' }}
                     />
-                    <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#000" 
-                        strokeWidth={2} 
-                        dot={{ r: 4, fill: '#000', strokeWidth: 0 }} 
+                    <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#000"
+                        strokeWidth={2}
+                        dot={{ r: 4, fill: '#000', strokeWidth: 0 }}
                         activeDot={{ r: 6, fill: '#000' }}
                         isAnimationActive={isInView}
                         animationDuration={2000}

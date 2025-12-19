@@ -11,10 +11,16 @@ export const metadata: Metadata = {
   description: "Painel de Performance Comercial",
 };
 
+import SmoothScroll from "@/components/providers/SmoothScroll";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${playfair.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="bg-white text-gray-950 antialiased">{children}</body>
+      <body className="bg-white text-gray-950 antialiased">
+        <SmoothScroll>
+          {children}
+        </SmoothScroll>
+      </body>
     </html>
   );
 }

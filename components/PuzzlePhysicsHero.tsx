@@ -28,7 +28,7 @@ export default function PuzzlePhysicsHero({
   const rotateX = useTransform(sy, [-0.5, 0.5], [7, -7]);
   const tx = useTransform(sx, [-0.5, 0.5], [-10, 10]);
   const ty = useTransform(sy, [-0.5, 0.5], [-8, 8]);
-  
+
   const shadowX = useTransform(sx, [-0.5, 0.5], [20, -20]);
   const shadowY = useTransform(sy, [-0.5, 0.5], [20, -20]);
 
@@ -55,7 +55,7 @@ export default function PuzzlePhysicsHero({
   return (
     <motion.div ref={ref} onPointerMove={onMove} onPointerLeave={onLeave} style={{ perspective: 1000 }} animate={floatAnim} className="cursor-grab active:cursor-grabbing">
       <motion.div
-        className="relative overflow-hidden rounded-[40px] bg-white"
+        className="relative overflow-hidden rounded-[40px]"
         style={{
           width: size, height: size,
           rotateX: reducedMotion ? 0 : rotateX,
@@ -64,9 +64,9 @@ export default function PuzzlePhysicsHero({
         }}
       >
         <motion.div className="absolute inset-0 z-0 opacity-20" style={{
-             boxShadow: useTransform([shadowX, shadowY], ([x, y]) => `${x}px ${y}px 60px rgba(0,0,0,0.2)`) 
+             boxShadow: useTransform([shadowX, shadowY], ([x, y]) => `${x}px ${y}px 60px rgba(0,0,0,0.2)`)
         }} />
-        
+
         <motion.div className="absolute inset-0 z-10" style={{ x: tx, y: ty }}>
           <Image src={src} alt={alt} fill className="object-cover" priority sizes="(max-width: 768px) 100vw, 500px"/>
         </motion.div>

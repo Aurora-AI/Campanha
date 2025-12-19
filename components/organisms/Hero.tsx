@@ -57,17 +57,19 @@ export default function Hero({ payload }: HeroProps) {
           <p className="max-w-2xl text-sm md:text-base text-foreground/70">{payload.subtitle}</p>
         </div>
 
-        <div className="relative mt-12 md:mt-16 flex items-center justify-center">
-          <motion.div style={{ x: moveX, y: moveY }} className="pointer-events-none">
-            <PuzzlePhysicsHero src={payload.images.puzzleSrc} alt="Cabeça de puzzle" size={420} />
-          </motion.div>
+        <div className="relative mt-12 md:mt-16">
+          <div className="absolute top-[110px] left-1/2 -translate-x-1/2 translate-x-[6%] z-[20] pointer-events-none">
+            <motion.div style={{ x: moveX, y: moveY }}>
+              <PuzzlePhysicsHero src={payload.images.puzzleSrc} alt="Cabeça de puzzle" size={520} />
+            </motion.div>
+          </div>
 
           <motion.aside
             drag
             dragConstraints={constraintsRef}
             dragElastic={0.14}
             dragSnapToOrigin
-            className="hidden md:block absolute left-0 top-2 w-[340px] rounded-3xl border border-black/10 bg-background/90 backdrop-blur-md shadow-xl p-6 pointer-events-auto cursor-grab active:cursor-grabbing"
+            className="hidden md:block absolute left-[6%] top-[180px] z-[30] w-[340px] rounded-3xl border border-black/10 bg-background/90 backdrop-blur-md shadow-xl p-6 pointer-events-auto cursor-grab active:cursor-grabbing"
             aria-label="Meta semanal por grupo"
           >
             <div className="text-[11px] font-bold tracking-[0.25em] uppercase text-foreground/60 pb-3 border-b border-black/10">
@@ -91,7 +93,7 @@ export default function Hero({ payload }: HeroProps) {
             dragConstraints={constraintsRef}
             dragElastic={0.14}
             dragSnapToOrigin
-            className="absolute right-2 bottom-2 md:right-0 md:bottom-0 h-40 w-40 md:h-52 md:w-52 rounded-full bg-foreground text-background shadow-2xl flex flex-col items-center justify-center pointer-events-auto cursor-grab active:cursor-grabbing"
+            className="absolute right-[8%] top-[260px] z-[30] h-40 w-40 md:h-52 md:w-52 rounded-full bg-foreground text-background shadow-2xl flex flex-col items-center justify-center pointer-events-auto cursor-grab active:cursor-grabbing"
             aria-label="Aprovados ontem"
           >
             <div className="text-[11px] font-bold tracking-[0.25em] uppercase text-background/70">

@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #030712; /* gray-950 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-serif: var(--font-playfair);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Progress bar width utility - controlled via CSS variable */
+.progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  width: var(--progress-width, 0%);
+}
