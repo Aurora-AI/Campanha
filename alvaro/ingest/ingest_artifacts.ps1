@@ -22,6 +22,17 @@ Log "Ingest iniciado (read-only). Fonte: artifacts/"
 $indexRaw = Get-Content -Raw -Path $indexPath
 $index = $indexRaw | ConvertFrom-Json
 
+# Normalização
+if (-not $index.items) { $index.items = @() }
+
+# Evitar auto-referência (não indexar o próprio log de ingest)
+$selfLogRelPath = "artifacts/alvaro_ingest.log"
+$hadSelfLogItem = $false
+if ($index.items.Count -gt 0) {
+  $hadSelfLogItem = @($index.items | Where-Object { $_.path -eq $selfLogRelPath }).Count -gt 0
+  $index.items = @($index.items | Where-Object { $_.path -ne $selfLogRelPath })
+}
+
 # Captura metadados git (se disponível)
 $gitCommit = $null
 $gitBranch = $null
@@ -36,13 +47,13 @@ try {
 $files = @()
 if (Test-Path $artifactsDir) {
   $files = Get-ChildItem -Path $artifactsDir -File -Recurse -ErrorAction SilentlyContinue |
-    Where-Object { $_.Extension -in @(".log", ".png", ".json") }
+    Where-Object { $_.Extension -in @(".log", ".png", ".json") -and $_.Name -ne "alvaro_ingest.log" }
 }
 
 # Indexação idempotente por path + tamanho + data
 $existing = @{}
-foreach ($it in $index.items) {
-  $existing[$it.path] = $true
+foreach ($it in @($index.items)) {
+  if ($null -ne $it.path) { $existing[$it.path] = $true }
 }
 
 $newItems = @()
@@ -69,6 +80,12 @@ foreach ($f in $files) {
     tags = @()
     related_os = $null
   }
+}
+
+$hasNewItems = $newItems.Count -gt 0
+if (-not $hasNewItems -and -not $hadSelfLogItem) {
+  Log "Sem novos itens. Index não alterado."
+  exit 0
 }
 
 $index.generated_at = (Get-Date).ToString("s")

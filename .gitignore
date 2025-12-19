@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# alvaro observer (operacional; não versionar)
+artifacts/alvaro_ingest.log
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

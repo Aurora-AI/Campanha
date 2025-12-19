@@ -34,6 +34,10 @@ fi
 existing_paths="$(jq -r '.items[].path' "$INDEX_PATH" 2>/dev/null || true)"
 
 new_items="[]"
+had_self="false"
+if jq -e '.items[]? | select(.path == "artifacts/alvaro_ingest.log")' "$INDEX_PATH" >/dev/null 2>&1; then
+  had_self="true"
+fi
 
 while IFS= read -r -d '' file; do
   rel="${file#${ROOT_DIR}/}"
@@ -71,12 +75,18 @@ done < <(find "$ARTIFACTS_DIR" -type f \( -name "*.log" -o -name "*.png" -o -nam
 
 now="$(date -Iseconds)"
 
+count="$(echo "$new_items" | jq 'length')"
+if [[ "$count" == "0" && "$had_self" != "true" ]]; then
+  log "Sem novos itens. Index não alterado."
+  exit 0
+fi
+
 tmp="$(mktemp)"
 jq --arg now "$now" --argjson newItems "$new_items" '
   .generated_at = $now |
+  .items = (.items | map(select(.path != "artifacts/alvaro_ingest.log"))) |
   .items = (.items + $newItems)
 ' "$INDEX_PATH" > "$tmp"
 mv "$tmp" "$INDEX_PATH"
 
-count="$(echo "$new_items" | jq 'length')"
 log "Ingest concluído. Novos itens: ${count}. Index: alvaro/knowledge/index.json"
