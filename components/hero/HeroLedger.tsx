@@ -29,9 +29,10 @@ export default function HeroLedger({
   const targetLabel = targetToday > 0 ? formatInt(targetToday) : '—';
   const ratioLabel = formatRatio(dayRatio, targetToday);
   const highlightName = highlightStore?.trim() ? highlightStore : '—';
-  const highlightApprovedLabel = Number.isFinite(highlightApproved)
-    ? `${formatInt(highlightApproved)} aprovadas`
-    : '—';
+  const highlightApprovedLabel =
+    typeof highlightApproved === 'number' && Number.isFinite(highlightApproved)
+      ? `${formatInt(highlightApproved)} aprovadas`
+      : '—';
 
   return (
     <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
