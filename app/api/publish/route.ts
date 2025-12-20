@@ -1,52 +1,28 @@
-import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { NextResponse } from 'next/server';
+import { publishSnapshot } from '@/lib/publisher';
 
-export const dynamic = "force-dynamic";
+export const runtime = 'nodejs';
 
 function unauthorized() {
-  return NextResponse.json(
-    { error: "Unauthorized" },
-    { status: 401, headers: { "Cache-Control": "no-store" } }
-  );
+  return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 }
 
 export async function POST(req: Request) {
   try {
-    const auth = req.headers.get("authorization") || "";
-    const expected = `Bearer ${process.env.ADMIN_TOKEN || ""}`;
+    const token = req.headers.get('x-admin-token') || '';
+    const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
-    if (!process.env.ADMIN_TOKEN) {
-      return unauthorized();
-    }
-    if (auth !== expected) {
-      return unauthorized();
-    }
+    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) return unauthorized();
 
     const snapshot = await req.json();
-
-    if (!snapshot?.publishedAt || !snapshot?.version || !snapshot?.data) {
-      return NextResponse.json(
-        { error: "Invalid snapshot: expected { publishedAt, version, data }" },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
-      );
+    if (!snapshot || typeof snapshot !== 'object') {
+      return NextResponse.json({ error: 'INVALID_SNAPSHOT' }, { status: 400 });
     }
 
-    const blob = await put("calceleve/latest.json", JSON.stringify(snapshot), {
-      access: "public",
-      contentType: "application/json",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
+    await publishSnapshot(snapshot);
 
-    return NextResponse.json(
-      { success: true, url: blob.url },
-      { status: 200, headers: { "Cache-Control": "no-store" } }
-    );
-  } catch (error) {
-    console.error("Erro ao publicar snapshot:", error);
-    return NextResponse.json(
-      { error: "Erro ao publicar atualização" },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch {
+    return NextResponse.json({ error: 'PUBLISH_FAILED' }, { status: 500 });
   }
 }

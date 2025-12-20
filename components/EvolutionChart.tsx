@@ -10,6 +10,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
+import { ChartFrame } from '@/components/charts/ChartFrame';
 
 export type EvolutionPoint = {
   label: string;
@@ -18,7 +19,7 @@ export type EvolutionPoint = {
 
 type EvolutionChartProps = {
   data?: EvolutionPoint[];
-  heightClassName?: string; // ex: "h-64" | "h-[280px]"
+  variant?: 'home' | 'bi';
 };
 
 const FALLBACK_DATA: EvolutionPoint[] = [
@@ -33,7 +34,7 @@ const FALLBACK_DATA: EvolutionPoint[] = [
 
 export default function EvolutionChart({
   data = FALLBACK_DATA,
-  heightClassName = 'h-64',
+  variant = 'bi',
 }: EvolutionChartProps) {
   /**
    * FIX DEFINITIVO (Recharts width/height -1):
@@ -41,29 +42,27 @@ export default function EvolutionChart({
    * - Em layouts grid/flex, é obrigatório min-w-0 para permitir shrink/medição correta
    */
   return (
-    <div className="w-full min-w-0">
-      <div className={`w-full ${heightClassName}`}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tickLine={false}
-              axisLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis tickLine={false} axisLine={false} width={28} />
-            <Tooltip cursor={{ fill: 'transparent' }} />
-            <Line
-              type="monotone"
-              dataKey="value"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <ChartFrame variant={variant}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            interval="preserveStartEnd"
+          />
+          <YAxis tickLine={false} axisLine={false} width={28} />
+          <Tooltip cursor={{ fill: 'transparent' }} />
+          <Line
+            type="monotone"
+            dataKey="value"
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartFrame>
   );
 }

@@ -4,6 +4,7 @@ import { MOCK_DB } from '@/lib/sandbox/mock';
 import { useInView } from 'framer-motion';
 import { useRef } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, Tooltip } from 'recharts';
+import { ChartFrame } from '@/components/charts/ChartFrame';
 import FadeIn from './FadeIn';
 
 export default function SectionYesterday() {
@@ -36,34 +37,36 @@ export default function SectionYesterday() {
         </FadeIn>
 
         {/* Right: Line Chart Draw */}
-        <div ref={ref} className="h-96 w-full min-w-0 relative">
-             <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.timeline}>
-                    <XAxis
-                        dataKey="day"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#a8a29e', fontSize: 12, fontFamily: 'var(--font-inter)' }}
-                        dy={10}
-                    />
-                    <Tooltip
-                        contentStyle={{ backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '0px' }}
-                        itemStyle={{ color: '#fff' }}
-                        cursor={{ stroke: '#e5e5e5' }}
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="value"
-                        stroke="#000"
-                        strokeWidth={2}
-                        dot={{ r: 4, fill: '#000', strokeWidth: 0 }}
-                        activeDot={{ r: 6, fill: '#000' }}
-                        isAnimationActive={isInView}
-                        animationDuration={2000}
-                        animationEasing="ease-out"
-                    />
-                </LineChart>
-             </ResponsiveContainer>
+        <div ref={ref} className="w-full min-w-0 relative">
+          <ChartFrame variant="home">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.timeline}>
+                <XAxis
+                  dataKey="day"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#a8a29e', fontSize: 12, fontFamily: 'var(--font-inter)' }}
+                  dy={10}
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '0px' }}
+                  itemStyle={{ color: '#fff' }}
+                  cursor={{ stroke: '#e5e5e5' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#000"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: '#000', strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: '#000' }}
+                  isAnimationActive={isInView}
+                  animationDuration={2000}
+                  animationEasing="ease-out"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartFrame>
         </div>
 
       </div>

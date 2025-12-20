@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import NavLink from '@/components/nav/NavLink';
 
 export default function EditorialNav() {
   return (
@@ -9,15 +12,10 @@ export default function EditorialNav() {
         </Link>
 
         <div className="flex items-center gap-8">
-          <Link href="/timeline" className="text-[11px] uppercase tracking-[0.28em] text-black/55 hover:text-black">
-            Timeline
-          </Link>
-          <Link href="/groups" className="text-[11px] uppercase tracking-[0.28em] text-black/55 hover:text-black">
-            Groups
-          </Link>
-          <Link href="/stores" className="text-[11px] uppercase tracking-[0.28em] text-black/55 hover:text-black">
-            Stores
-          </Link>
+          <NavLink href="/" label="Home" />
+          <NavLink href="/groups" label="Grupos" />
+          <NavLink href="/stores" label="Lojas" />
+          <NavLink href="/timeline" label="Linha do tempo" />
         </div>
       </div>
     </nav>

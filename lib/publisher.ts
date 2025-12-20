@@ -1,60 +1,60 @@
-import type { DashboardData } from "./pipeline";
+import { put, list, head } from '@vercel/blob';
 
-export type PublicSnapshot = {
-  publishedAt: string;
-  version: string;
-  sourceFileName?: string;
-  data: DashboardData;
-};
+type AnyObj = Record<string, any>;
 
-type PublishResult =
-  | { success: true; url?: string }
-  | { success: false; error: string };
+const PREFIX = 'campanha/snapshots';
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 
-export async function publishSnapshot(
-  snapshot: PublicSnapshot,
-  token: string
-): Promise<PublishResult> {
-  try {
-    const res = await fetch("/api/publish", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token.trim()}`,
-      },
-      body: JSON.stringify(snapshot),
-      cache: "no-store",
-    });
-
-    if (res.status === 401) return { success: false, error: "Token inválido" };
-    if (!res.ok) return { success: false, error: "Falha ao publicar" };
-
-    return { success: true, ...(await res.json()) };
-  } catch {
-    return { success: false, error: "Erro de rede ao publicar" };
-  }
+function assertToken() {
+  if (!BLOB_TOKEN) throw new Error('Missing BLOB_READ_WRITE_TOKEN');
 }
 
-export async function loadLatestSnapshot(): Promise<PublicSnapshot | null> {
-  try {
-    const res = await fetch("/api/latest", { cache: "no-store" });
-    if (res.status === 204) return null;
-    if (!res.ok) return null;
+/**
+ * Publica um snapshot versionado com URL nao adivinhavel.
+ * Nao cria "latest.json" previsivel. O "latest" e calculado via list() no server.
+ */
+export async function publishSnapshot(snapshot: AnyObj): Promise<void> {
+  assertToken();
 
-    const json = (await res.json()) as unknown;
+  const now = new Date();
+  const stamp = now.toISOString().replace(/[:.]/g, '-');
+  const pathname = `${PREFIX}/snapshot-${stamp}.json`;
 
-    if (
-      !json ||
-      typeof json !== "object" ||
-      !("publishedAt" in json) ||
-      !("version" in json) ||
-      !("data" in json)
-    ) {
-      return null;
-    }
+  await put(pathname, JSON.stringify(snapshot, null, 2), {
+    access: 'public',
+    token: BLOB_TOKEN,
+    contentType: 'application/json',
+    addRandomSuffix: true,
+  });
+}
 
-    return json as PublicSnapshot;
-  } catch {
-    return null;
-  }
+/**
+ * Busca o snapshot mais recente via list() (server-only, exige token).
+ * Retorna null se nao houver nenhum publicado.
+ */
+export async function getLatestSnapshot(): Promise<AnyObj | null> {
+  assertToken();
+
+  const page = await list({
+    token: BLOB_TOKEN,
+    prefix: `${PREFIX}/`,
+    limit: 100,
+  });
+
+  const items = page?.blobs ?? [];
+  if (items.length === 0) return null;
+
+  const latest = [...items].sort((a, b) => {
+    const ta = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+    const tb = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+    return tb - ta;
+  })[0];
+
+  const meta = await head(latest.pathname, { token: BLOB_TOKEN });
+  if (!meta?.url) return null;
+
+  const res = await fetch(meta.url, { cache: 'no-store' });
+  if (!res.ok) return null;
+
+  return await res.json();
 }

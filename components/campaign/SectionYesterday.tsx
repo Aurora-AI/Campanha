@@ -59,7 +59,7 @@ export default function SectionYesterday({
               </div>
 
               {/* Height real + shrink OK */}
-              <EvolutionChart data={data} heightClassName="h-96" />
+              <EvolutionChart data={data} variant="bi" />
             </div>
           </div>
         </div>

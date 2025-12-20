@@ -1,4 +1,4 @@
-# Publicação via Vercel Blob
+# Publicação via Vercel Blob (Snapshots Unguessable)
 
 ## Configuração de Environment Variables
 
@@ -12,8 +12,8 @@ Acesse Settings → Environment Variables e adicione:
 - **Escopo:** Production, Preview, Development
 
 #### `ADMIN_TOKEN`
-- **Valor:** String aleatória longa (ex: `openssl rand -hex 32`)
-- **Propósito:** Autorização para publicar snapshots
+- **Valor:** String aleatoria longa (ex: `openssl rand -hex 32`)
+- **Proposito:** Autorizacao para publicar snapshots
 - **Escopo:** Production, Preview
 - **Exemplo:** `7a8f9e2c4b1d6e3a5c9f8b7e4d2a6c8f1b9e7d5c3a8f6e4b2d7c9a5e3f1b8d6`
 
@@ -26,94 +26,88 @@ BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
 ADMIN_TOKEN=your_secure_random_token
 ```
 
-**Nunca commite `.env.local`** (já está no `.gitignore`)
+**Nunca commite `.env.local`** (ja esta no `.gitignore`)
 
 ## Como Funciona
 
-### Fluxo de Publicação
+### Fluxo de Publicacao
 
-1. **Upload do CSV** → Dashboard processa e mostra resultados
-2. **Modo Admin** → Usuário clica em "Publicar versão (Modo Admin)"
-3. **Token de Publicação** → Insere o `ADMIN_TOKEN` no campo
-4. **Publica** → API valida token e salva `calceleve/latest.json` no Blob
-5. **Confirmação** → "Atualização publicada! Todos verão esta versão."
+1. **Upload do CSV** via `/admin`
+2. **Token de Publicacao** → insere o `ADMIN_TOKEN`
+3. **Publica** → API valida token, processa CSV, gera snapshot e grava Blob com `addRandomSuffix: true`
+4. **Confirmacao** → resposta retorna `ok: true` (sem URL)
 
 ### Fluxo de Leitura
 
-1. Qualquer pessoa acessa `/dashboard`
-2. Dashboard automaticamente busca `GET /api/latest`
-3. Se existe `latest.json` → carrega snapshot público
-4. Se não existe → mostra "Nenhuma atualização publicada ainda"
-5. **Botão "Recarregar"** → refaz busca para pegar última versão
+1. O app chama `GET /api/latest`
+2. O server resolve o snapshot mais recente via `list()` + token
+3. O JSON completo e servido apenas pela API (sem expor URL do Blob)
+4. Em prod sem publicacao → retorna `404` com erro claro
 
 ## Endpoints
 
-### `POST /api/publish`
+### `POST /api/publish-csv`
 
 **Headers:**
 ```
-Authorization: Bearer <ADMIN_TOKEN>
-Content-Type: application/json
+x-admin-token: <ADMIN_TOKEN>
 ```
 
-**Body:**
-```json
-{
-  "publishedAt": "2025-12-15T10:30:00.000Z",
-  "sourceFileName": "relatorio.csv",
-  "version": "1",
-  "data": { /* DashboardData */ }
-}
-```
+**Body:** `multipart/form-data`
+- `file`: CSV original
 
 **Responses:**
-- `200` → `{ success: true, url: "...", publishedAt: "..." }`
-- `401` → `{ error: "Token inválido. Publicação não autorizada." }`
-- `400` → `{ error: "Snapshot inválido" }`
+- `200` → `{ ok: true, proposals: number }`
+- `401` → `{ error: "UNAUTHORIZED" }`
+- `400` → `{ error: "MISSING_FILE" }`
 
 ### `GET /api/latest`
 
-**Headers:** Nenhum (público)
+**Headers:** Nenhum (protegido por Cloudflare Access em prod)
 
 **Responses:**
 - `200` → JSON do snapshot
-- `204 No Content` → Ainda não foi publicado
-- `500` → Erro
+- `404` → Nenhum snapshot publicado (prod)
+- `500` → Erro interno
 
-**Cache:** Nenhum (`no-store, no-cache`)
+## Seguranca
 
-## Segurança
-
-✅ **ADMIN_TOKEN nunca é exposto no client**  
-✅ **Publicação protegida por Bearer token**  
-✅ **Snapshot público pode ser lido por qualquer pessoa** (intencional)  
-✅ **Sobrescreve sempre o mesmo arquivo** (`calceleve/latest.json`)
+✅ **ADMIN_TOKEN nunca e exposto no client**  
+✅ **Snapshots com URLs nao adivinhaveis** (`addRandomSuffix: true`)  
+✅ **Sem `latest.json` previsivel**  
+✅ **Leitura somente via `/api/latest` (server-side)**  
 
 ## Troubleshooting
 
-### "Token inválido"
-- Verificar se `ADMIN_TOKEN` está setado no Vercel
+### "UNAUTHORIZED"
+- Verificar se `ADMIN_TOKEN` esta setado no Vercel
 - Confirmar que o valor digitado bate exatamente com a env var
-- Redeployar após mudar env vars
+- Redeployar apos mudar env vars
 
-### "Nenhuma atualização publicada"
-- Primeira vez: é esperado, precisa publicar via modo admin
-- Verificar se `BLOB_READ_WRITE_TOKEN` está correto
+### "NO_SNAPSHOT"
+- Primeira vez: e esperado, precisa publicar via `/admin`
+- Verificar se `BLOB_READ_WRITE_TOKEN` esta correto
 - Conferir logs da API no Vercel
 
-### Snapshot não atualiza
-- Apertar botão "Recarregar" (cache pode estar ativo localmente)
-- Verificar se publicação teve sucesso (status verde)
-- Conferir Blob Store no Vercel Dashboard → Blob → `calceleve/latest.json`
+### Snapshot nao atualiza
+- Conferir resposta do `/api/publish-csv`
+- Verificar logs da API no Vercel
+- Conferir Blob Store no Vercel Dashboard → Blob → `campanha/snapshots/*`
 
 ## Snapshot Structure
 
-```typescript
-interface PublicSnapshot {
-  publishedAt: string;        // ISO timestamp
-  sourceFileName?: string;    // Nome do CSV original
-  version: string;            // "1"
-  data: DashboardData;        // Dados completos do dashboard
+```ts
+interface Snapshot {
+  schemaVersion: 'campaign-snapshot/v1';
+  campaign: {
+    campaignId: string;
+    campaignName: string;
+    timezone: string;
+  };
+  updatedAtISO: string;
+  proposals: ProposalFact[];
+  storeMetrics: StoreMetrics[];
+  editorialSummary: EditorialSummaryVM;
 }
 ```
 
@@ -124,6 +118,5 @@ interface PublicSnapshot {
 - [ ] `ADMIN_TOKEN` gerado e configurado
 - [ ] Build passa sem erros
 - [ ] Deploy na Vercel
-- [ ] Testar publicação com token correto
-- [ ] Testar acesso público (aba anônima)
-- [ ] Testar recarregamento
+- [ ] Testar publicacao via `/admin`
+- [ ] Testar `GET /api/latest`

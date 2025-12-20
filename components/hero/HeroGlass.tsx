@@ -1,32 +1,42 @@
 'use client';
 
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { useEffect, useMemo, useRef } from 'react';
 
-import { MOCK_DB } from '@/lib/campaign/mock';
-
 type HeroGlassProps = {
-  puzzleSrc?: string; // default: /images/puzzle.png
+  backgroundSrc?: string; // default: /images/hero-final.png
   title?: string;
   subtitle?: string;
   damp?: number; // smaller = stronger. recommended 44-60
+  meta?: { approvedYesterday: number; targetToday: number; dayRatio: number };
+  highlight?: { store: string; approvedYesterday: number };
 };
 
+const numberFormatter = new Intl.NumberFormat('pt-BR');
+
+function formatInt(value: number, fallback = '—') {
+  if (!Number.isFinite(value)) return fallback;
+  return numberFormatter.format(value);
+}
+
+function formatRatio(value: number, targetToday: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(targetToday) || targetToday <= 0) return '—';
+  return `${value.toFixed(2).replace('.', ',')}x`;
+}
+
 export default function HeroGlass({
-  puzzleSrc = '/images/puzzle.png',
-  title = 'Campaign Performance',
-  subtitle = 'DAILY EVOLUTION AND STRATEGIC INSIGHTS FOR THE MODERN ERA.',
+  backgroundSrc = '/images/hero-final.png',
+  title = 'Calceleve - Campanha aceleração 2025',
+  subtitle = 'EVOLUÇÃO DIÁRIA E INSIGHTS ESTRATÉGICOS PARA A TOMADA DE DECISÃO.',
   damp = 52,
+  meta,
+  highlight,
 }: HeroGlassProps) {
   const bgRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
-  const constraintsRef = useRef<HTMLElement | null>(null);
 
   const target = useRef({ x: 0, y: 0 });
   const current = useRef({ x: 0, y: 0 });
-
-  const { weeklyGoals, yesterdayApproved } = MOCK_DB.hero;
 
   const lerp = useMemo(() => 0.075, []);
 
@@ -62,14 +72,24 @@ export default function HeroGlass({
     };
   }, [damp, lerp]);
 
+  const approvedLabel = formatInt(meta?.approvedYesterday ?? 0);
+  const targetLabel = meta?.targetToday && meta.targetToday > 0 ? formatInt(meta.targetToday) : '—';
+  const ratioLabel = formatRatio(meta?.dayRatio ?? 0, meta?.targetToday ?? 0);
+  const highlightStore = highlight?.store?.trim() ? highlight.store : '—';
+  const highlightApprovedValue =
+    typeof highlight?.approvedYesterday === 'number' ? highlight.approvedYesterday : NaN;
+  const highlightApproved = Number.isFinite(highlightApprovedValue)
+    ? `${formatInt(highlightApprovedValue)} aprovadas`
+    : '—';
+
   return (
-    <section ref={constraintsRef} className="relative h-[100svh] w-full overflow-hidden bg-white">
-      {/* Layer 0 - Puzzle background only */}
+    <section className="relative h-[100svh] w-full overflow-hidden bg-white">
+      {/* Layer 0 - Background image only */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div ref={bgRef} className="absolute inset-[-6%] will-change-transform" aria-hidden="true">
           <Image
-            src={puzzleSrc}
-            alt="Puzzle Head"
+            src={backgroundSrc}
+            alt="Hero background"
             fill
             priority
             className="object-contain opacity-95"
@@ -100,51 +120,45 @@ export default function HeroGlass({
           </div>
 
           <div className="mt-16 text-[10px] tracking-[0.28em] text-black/30">
-            SCROLL TO EXPLORE
+            ROLE PARA EXPLORAR
+          </div>
+
+          <div className="mt-8 flex justify-center md:hidden">
+            <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-black px-3 text-center text-white shadow-sm">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-white/70">DESTAQUE DO DIA</div>
+              <div className="mt-1 text-[10px] font-semibold leading-tight">{highlightStore}</div>
+              <div className="mt-1 text-[11px] font-semibold tabular-nums">{highlightApproved}</div>
+              <div className="mt-1 text-[9px] uppercase tracking-[0.28em] text-white/80">Parabéns!</div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Layer 20 - Satellites */}
-      <div className="absolute inset-0 z-20 pointer-events-none">
-        <motion.div
-          drag
-          dragConstraints={constraintsRef}
-          dragSnapToOrigin
-          className="pointer-events-auto absolute left-[5.5%] top-[22%] md:left-[6%] md:top-[22%] lg:left-[7%] lg:top-[23%] z-20 scale-[0.98] origin-left hidden md:block w-auto bg-white border border-stone-200 p-6 cursor-grab active:cursor-grabbing shadow-xl"
-          whileHover={{ rotate: -2, scale: 1.05 }}
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5, duration: 0.8 }}
-        >
-          <h3 className="mb-4 font-serif text-lg text-stone-900">Weekly Goals</h3>
-          <div className="space-y-3 font-sans text-xs uppercase tracking-widest text-stone-600">
-            {weeklyGoals.map((g) => (
-              <div key={g.group} className="flex justify-between gap-8 border-b border-stone-100 pb-1">
-                <span>{g.group}</span>
-                <span className={g.actual >= g.target ? 'text-emerald-600' : 'text-stone-400'}>
-                  {g.actual}/{g.target}
-                </span>
-              </div>
-            ))}
+      <div className="pointer-events-auto absolute left-[6%] top-[14%] z-20 hidden w-[260px] rounded-sm border border-black/10 bg-white/95 p-5 shadow-sm md:block">
+        <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">META DO DIA</div>
+        <div className="mt-4 space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-black/60">Executado:</span>
+            <span className="font-semibold tabular-nums text-black/80">{approvedLabel}</span>
           </div>
-        </motion.div>
+          <div className="flex items-center justify-between">
+            <span className="text-black/60">Esperado:</span>
+            <span className="font-semibold tabular-nums text-black/80">{targetLabel}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-black/45">
+            <span>Ritmo:</span>
+            <span className="font-semibold tabular-nums text-black/70">{ratioLabel}</span>
+          </div>
+        </div>
+      </div>
 
-        <motion.div
-          drag
-          dragConstraints={constraintsRef}
-          dragSnapToOrigin
-          className="pointer-events-auto absolute right-[7%] top-[30%] md:right-[8%] md:top-[30%] lg:right-[9%] lg:top-[32%] z-20 scale-[0.92] md:scale-[0.98] origin-right flex h-40 w-40 flex-col items-center justify-center rounded-full bg-stone-900 p-4 text-white cursor-grab active:cursor-grabbing shadow-xl"
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-        >
-          <span className="font-serif text-5xl leading-none">{yesterdayApproved.value}</span>
-          <span className="mt-1 text-center text-[9px] uppercase tracking-widest leading-tight opacity-80">
-            {yesterdayApproved.label}
-          </span>
-        </motion.div>
+      <div className="pointer-events-auto absolute bottom-[12%] right-[6%] z-20 hidden md:block">
+        <div className="flex h-40 w-40 flex-col items-center justify-center rounded-full bg-black px-5 text-center text-white shadow-sm">
+          <div className="text-[10px] uppercase tracking-[0.28em] text-white/70">DESTAQUE DO DIA</div>
+          <div className="mt-2 text-xs font-semibold leading-tight">{highlightStore}</div>
+          <div className="mt-2 text-sm font-semibold tabular-nums">{highlightApproved}</div>
+          <div className="mt-2 text-[10px] uppercase tracking-[0.28em] text-white/80">Parabéns!</div>
+        </div>
       </div>
     </section>
   );
