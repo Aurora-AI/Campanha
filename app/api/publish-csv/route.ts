@@ -3,6 +3,8 @@ import { parseCalceleveCsv } from '@/lib/analytics/csv/parseCalceleveCsv';
 import { normalizeProposals } from '@/lib/analytics/normalize/normalizeProposals';
 import { computeSnapshot } from '@/lib/analytics/compute/computeSnapshot';
 import { publishSnapshot } from '@/lib/publisher';
+import { verifyAdminCookie } from '@/lib/admin/auth';
+import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +16,10 @@ export async function POST(req: Request) {
   try {
     const token = req.headers.get('x-admin-token') || '';
     const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
-    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) return unauthorized();
+    const headerOk = !!ADMIN_TOKEN && token === ADMIN_TOKEN;
+    const cookie = cookies().get('mycelium_admin')?.value;
+    const cookieOk = cookie ? await verifyAdminCookie(cookie) : false;
+    if (!headerOk && !cookieOk) return unauthorized();
 
     const form = await req.formData();
     const file = form.get('file');

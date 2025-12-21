@@ -22,15 +22,14 @@ const parseCsvText = (csvText: string): Promise<string[][]> =>
     });
   });
 
-export async function uploadCampaignCsv(file: File): Promise<UploadResponse> {
-  const csvText = await file.text();
+export async function uploadCampaignCsv(csvText: string, sourceName: string): Promise<UploadResponse> {
   const rawRows = await parseCsvText(csvText);
   const { header, rows, headerIndex } = detectHeaderAndRows(rawRows);
   const strippedRows = [header, ...rows];
 
   const payload = {
     meta: {
-      source: file.name,
+      source: sourceName,
       uploadedAt: new Date().toISOString(),
       rows: strippedRows.length,
       skippedPreambleRows: headerIndex,

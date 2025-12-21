@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { UploadCloud, Loader2, RefreshCw } from "lucide-react";
 import type { MetricsPayload } from "@/lib/metrics/compute";
 
@@ -8,7 +9,7 @@ export default function CalceleveDashboard() {
   const [data, setData] = useState<MetricsPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessages, setStatusMessages] = useState<string[]>([]);
 
   // Reload latest editorial metrics from Blob via API (source of truth)
   const reloadLatestFromBlob = async () => {
@@ -43,13 +44,13 @@ export default function CalceleveDashboard() {
   const handleReload = async () => {
     setLoading(true);
     setError(null);
-    setStatusMessage(null);
+    setStatusMessages([]);
 
     try {
       const loaded = await reloadLatestFromBlob();
       if (loaded) {
-        setStatusMessage("✅ Dashboard sincronizado com a última versão");
-        setTimeout(() => setStatusMessage(null), 3000);
+        setStatusMessages(["✅ Dashboard sincronizado com a última versão"]);
+        setTimeout(() => setStatusMessages([]), 3000);
         return;
       }
       setError("Nenhuma atualização publicada ainda.");
@@ -68,7 +69,7 @@ export default function CalceleveDashboard() {
     setLoading(true);
     setError(null);
     setData(null);
-    setStatusMessage(null);
+    setStatusMessages([]);
 
     try {
       const fd = new FormData();
@@ -83,8 +84,8 @@ export default function CalceleveDashboard() {
       const loaded = await reloadLatestFromBlob();
       if (!loaded) throw new Error("CSV enviado, mas não foi possível carregar /api/metrics");
 
-      setStatusMessage("✅ CSV enviado com sucesso");
-      setTimeout(() => setStatusMessage(null), 3000);
+      setStatusMessages(["✅ campanha-data.json atualizado", "✅ snapshot publicado (Home atualizada)"]);
+      setTimeout(() => setStatusMessages([]), 4000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -149,7 +150,18 @@ export default function CalceleveDashboard() {
         )}
 
          {error && <div className="mt-4 text-red-600 bg-red-50 p-3 rounded-lg text-sm">{error}</div>}
-         {statusMessage && <div className="mt-4 text-green-700 bg-green-50 p-3 rounded-lg text-sm">{statusMessage}</div>}
+         {statusMessages.length > 0 && (
+            <div className="mt-4 space-y-2 rounded-lg bg-green-50 p-3 text-sm text-green-700">
+              {statusMessages.map((message) => (
+                <div key={message}>{message}</div>
+              ))}
+              <div>
+                <Link href="/" className="text-green-900 underline underline-offset-4">
+                  Abrir Home
+                </Link>
+              </div>
+            </div>
+          )}
          
          {data && (
             <div className="mt-4 space-y-4">
