@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { weeklyTargetTotal, type CampaignConfig } from '@/lib/campaign/config';
 import type { EditorialSummaryVM, ProposalFact, StatusLabel, StoreMetrics } from '@/lib/analytics/types';
+import type { UnknownRecord } from '@/src/types/data';
 
 type StoreStats = {
   store: string;
@@ -24,10 +25,19 @@ export type EditorialSummaryPayload = Omit<EditorialSummaryVM, 'dailyEditorial' 
 };
 
 type BuildEditorialSummaryOptions = {
-  snapshot: any | null | undefined;
+  snapshot: unknown | null | undefined;
   config: CampaignConfig;
   now?: DateTime;
 };
+
+type SummaryDraft = EditorialSummaryPayload & {
+  dailyEditorial?: unknown;
+  weeklyEditorial?: unknown;
+};
+
+function asRecord(input: unknown): UnknownRecord | null {
+  return input && typeof input === 'object' ? (input as UnknownRecord) : null;
+}
 
 function statusFromDayRatio(ratio: number): StatusLabel {
   if (ratio >= 1) return 'NO JOGO';
@@ -167,25 +177,34 @@ export function buildEditorialSummaryPayload({
     ],
   };
 
-  if (!snapshot) {
+  const root = asRecord(snapshot);
+  if (!root) {
     return fallbackSummary;
   }
 
-  const summary = {
+  const editorialSummary = asRecord(root.editorialSummary);
+  const hero = asRecord(editorialSummary?.hero);
+  const pulse = asRecord(editorialSummary?.pulse);
+  const totals = asRecord(editorialSummary?.totals);
+  const highlights = asRecord(editorialSummary?.highlights);
+
+  const summary: SummaryDraft = {
     ...fallbackSummary,
-    ...(snapshot.editorialSummary ?? {}),
-    hero: { ...fallbackSummary.hero, ...(snapshot.editorialSummary?.hero ?? {}) },
-    pulse: { ...fallbackSummary.pulse, ...(snapshot.editorialSummary?.pulse ?? {}) },
-    totals: { ...fallbackSummary.totals, ...(snapshot.editorialSummary?.totals ?? {}) },
-    highlights: { ...fallbackSummary.highlights, ...(snapshot.editorialSummary?.highlights ?? {}) },
+    ...(editorialSummary ?? {}),
+    hero: { ...fallbackSummary.hero, ...(hero ?? {}) },
+    pulse: { ...fallbackSummary.pulse, ...(pulse ?? {}) },
+    totals: { ...fallbackSummary.totals, ...(totals ?? {}) },
+    highlights: { ...fallbackSummary.highlights, ...(highlights ?? {}) },
   };
 
   summary.hero.headline = config.campaignName;
   summary.hero.subheadline = config.taglinePt;
-  const { dailyEditorial: _dailyEditorial, weeklyEditorial: _weeklyEditorial, ...summaryBase } = summary;
+  const { dailyEditorial, weeklyEditorial, ...summaryBase } = summary;
+  void dailyEditorial;
+  void weeklyEditorial;
 
-  const proposals = Array.isArray(snapshot.proposals) ? (snapshot.proposals as ProposalFact[]) : [];
-  const storeMetrics = Array.isArray(snapshot.storeMetrics) ? (snapshot.storeMetrics as StoreMetrics[]) : [];
+  const proposals = Array.isArray(root.proposals) ? (root.proposals as ProposalFact[]) : [];
+  const storeMetrics = Array.isArray(root.storeMetrics) ? (root.storeMetrics as StoreMetrics[]) : [];
   const useFinalized = config.useFinalizedDateForApprovals;
 
   const yesterdayKey = yesterday.toISODate() ?? '-';

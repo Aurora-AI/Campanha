@@ -1,7 +1,7 @@
 // Client-only loader for the public latest snapshot
 // Ensures no caching and simple status mapping without throwing
 
-export type LatestSnapshot = Record<string, any>;
+export type LatestSnapshot = Record<string, unknown>;
 
 export type LatestResult =
   | { status: 'empty' }
@@ -20,7 +20,7 @@ export async function fetchLatest(): Promise<LatestResult> {
     }
 
     return { status: 'ok', snapshot: json as LatestSnapshot };
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('fetchLatest: error', err);
     return { status: 'empty' };
   }

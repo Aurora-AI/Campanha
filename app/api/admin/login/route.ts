@@ -5,10 +5,10 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { username, password } = await req.json().catch(() => ({
-      username: "",
-      password: "",
-    }));
+    type LoginPayload = { username?: string; password?: string };
+    const body = (await req.json().catch(() => ({}))) as LoginPayload;
+    const username = body.username ?? "";
+    const password = body.password ?? "";
 
     const expectedUser = process.env.ADMIN_USER ?? "";
     const expectedPass = process.env.ADMIN_PASSWORD ?? "";
@@ -43,10 +43,10 @@ export async function POST(req: Request) {
     });
 
     return res;
-  } catch (e: any) {
-    console.error("ADMIN LOGIN ERROR:", e);
+  } catch (e: unknown) {
+    console.error("ADMIN LOGIN ERROR:", e instanceof Error ? e.message : "unknown_error");
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Erro interno." },
+      { ok: false, error: e instanceof Error ? e.message : "Erro interno." },
       { status: 500 }
     );
   }

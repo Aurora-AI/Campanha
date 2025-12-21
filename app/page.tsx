@@ -1,5 +1,5 @@
 import { getLatestSnapshot } from '@/lib/publisher';
-import { adaptSnapshotToCampaign } from '@/lib/campaign/adapter';
+import { buildHomeViewModel } from '@/src/features/home/mappers/buildHomeViewModel';
 import Header from '@/components/campaign/Header';
 import Hero from '@/components/campaign/Hero';
 import Footer from '@/components/campaign/Footer';
@@ -12,19 +12,32 @@ import SectionTotal from '@/components/campaign/SectionTotal';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const snapshot = await getLatestSnapshot();
-  const data = adaptSnapshotToCampaign(snapshot);
+  let snapshot = null;
+  try {
+    snapshot = await getLatestSnapshot();
+  } catch {
+    snapshot = null;
+  }
+
+  const vm = buildHomeViewModel(snapshot);
 
   return (
     <>
       <Header />
-      <Hero data={data.hero} />
-      <SectionYesterday data={data.movement.timeline as any} />
-      <SectionGroups data={data.campaign} />
-      <SectionReengagement data={data.reengagement} />
-      <SectionKPIs data={data.kpis} />
-      <SectionTotal data={data.accumulated} />
-      <Footer />
+      <Hero cover={vm.cover} />
+      <SectionYesterday
+        title={vm.movement.title}
+        subtitle={vm.movement.subtitle}
+        summary={vm.movement.summary}
+        timeline={vm.movement.timeline}
+        podium={vm.podium}
+        storeList={vm.storeList}
+      />
+      <SectionGroups vm={vm.campaign} action={vm.spread.right} />
+      <SectionReengagement data={vm.reengagement} />
+      <SectionKPIs items={vm.highlights} />
+      <SectionTotal data={vm.accumulated} />
+      <Footer links={vm.archive.links} />
     </>
   );
 }

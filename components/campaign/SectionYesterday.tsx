@@ -2,17 +2,26 @@
 
 import * as React from 'react';
 import EvolutionChart, { EvolutionPoint } from '@/components/EvolutionChart';
+import PodiumHighlight from '@/src/features/home/components/PodiumHighlight';
+import StoreRankingList from '@/src/features/home/components/StoreRankingList';
+import type { HomeViewModel } from '@/src/features/home/contracts/homeViewModel';
 
 type SectionYesterdayProps = {
   title?: string;
   subtitle?: string;
-  data?: EvolutionPoint[];
+  summary: HomeViewModel['movement']['summary'];
+  timeline?: EvolutionPoint[];
+  podium: HomeViewModel['podium'];
+  storeList: HomeViewModel['storeList'];
 };
 
 export default function SectionYesterday({
-  title = "Yesterday's Performance",
-  subtitle = 'Daily evolution and strategic insights.',
-  data,
+  title = 'Resultado do dia',
+  subtitle = 'Evolucao diaria e leitura de contexto.',
+  summary,
+  timeline,
+  podium,
+  storeList,
 }: SectionYesterdayProps) {
   /**
    * FIX DEFINITIVO (Recharts width/height -1):
@@ -28,25 +37,26 @@ export default function SectionYesterday({
           <p className="mt-1 text-sm opacity-70">{subtitle}</p>
         </div>
 
+        <div className="mb-6">
+          <PodiumHighlight items={podium} />
+        </div>
+
         <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12">
           {/* Coluna texto/kpis (ajuste livre) */}
           <div className="min-w-0 lg:col-span-4">
             <div className="rounded-2xl border bg-white/70 p-5 shadow-sm">
-              <div className="text-xs uppercase tracking-widest opacity-60">Summary</div>
-              <div className="mt-3 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="opacity-70">Approved</span>
-                  <span className="font-medium">142</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="opacity-70">Delta</span>
-                  <span className="font-medium">+12</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="opacity-70">Trend</span>
-                  <span className="font-medium">Up</span>
-                </div>
+              <div className="text-xs uppercase tracking-widest opacity-60">Resumo</div>
+              <div className="mt-3">
+                <div className="text-xs uppercase tracking-widest text-stone-400">{summary.label}</div>
+                <div className="mt-2 text-2xl font-semibold text-stone-900">{summary.value}</div>
+                {summary.deltaText ? (
+                  <div className="mt-2 text-xs text-stone-500">{summary.deltaText}</div>
+                ) : null}
               </div>
+            </div>
+
+            <div className="mt-6">
+              <StoreRankingList items={storeList} />
             </div>
           </div>
 
@@ -59,7 +69,7 @@ export default function SectionYesterday({
               </div>
 
               {/* Height real + shrink OK */}
-              <EvolutionChart data={data} variant="bi" />
+              <EvolutionChart data={timeline} variant="bi" />
             </div>
           </div>
         </div>
