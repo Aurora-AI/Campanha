@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "documents": [
+    {
+      "id": "CRITERIO_FORMAL_DE_ACEITE_DE_INTERFACE",
+      "title": "📜 CRITÉRIO FORMAL DE ACEITE DE INTERFACE",
+      "path": "CONSTITUICAO/CRITERIO_FORMAL_DE_ACEITE_DE_INTERFACE.md",
+      "sha256": "44490fe0ecb89caa0f942a793a9af4b535942f3f49c9d5e984ae3ea51477e9b3"
+    },
+    {
+      "id": "MANUAL_DE_CONSTRUCAO_MYCELIUM_FRONTEND_v1.0",
+      "title": "Manual de Construção Mycelium — Frontend",
+      "path": "CONSTITUICAO/MANUAL_DE_CONSTRUCAO_MYCELIUM_FRONTEND_v1.0.md",
+      "sha256": "1a49b3e7d971ccc7b5309715d8ef02e6a25c5d44a2e53bdb6335005dbe2e52fb"
+    },
+    {
+      "id": "ADR-001-Instituicao-Manual-Frontend-Mycelium",
+      "title": "ADR-001 — Instituição do Manual de Construção Mycelium (Frontend)",
+      "path": "CONSTITUICAO/ADR-001-Instituicao-Manual-Frontend-Mycelium.md",
+      "sha256": "a67839464d41ed685ddcbcf1cb1422deeb0024b4cd83f9299d432f0c9bc57ba6"
+    },
+    {
+      "id": "GUIA_COMPLEMENTAR_COGNITIVE_PUZZLE",
+      "title": "GUIA COMPLEMENTAR — ARQUITETURA COGNITIVE PUZZLE",
+      "path": "CONSTITUICAO/GUIA_COMPLEMENTAR_COGNITIVE_PUZZLE.md",
+      "sha256": "6429ec381a719fe381835fa5ac38c31ed39f1d3e18f8845a4e1c884ba9e4f0ac"
+    }
+  ]
+}

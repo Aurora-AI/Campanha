@@ -12,7 +12,14 @@ export async function GET() {
     const latest = await getLatestSnapshot();
 
     if (latest) {
-      return NextResponse.json(latest, { status: 200 });
+      return NextResponse.json(latest, {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
     }
 
     if (!isProd()) {

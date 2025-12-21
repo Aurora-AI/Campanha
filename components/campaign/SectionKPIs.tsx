@@ -29,8 +29,12 @@ const KPIBlock = ({ label, value, delta }: { label: string, value: string, delta
     );
 };
 
-export default function SectionKPIs() {
-  const { kpis } = MOCK_DB;
+type SectionKPIsProps = {
+  data: typeof MOCK_DB.kpis;
+};
+
+export default function SectionKPIs({ data }: SectionKPIsProps) {
+  const kpis = data;
 
   return (
     <section className="w-full py-24 bg-white">

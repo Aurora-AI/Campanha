@@ -3,8 +3,12 @@
 import { MOCK_DB } from '@/lib/campaign/mock';
 import { motion } from 'framer-motion';
 
-export default function SectionReengagement() {
-  const { title, subtitle } = MOCK_DB.reengagement;
+type SectionReengagementProps = {
+  data: typeof MOCK_DB.reengagement;
+};
+
+export default function SectionReengagement({ data }: SectionReengagementProps) {
+  const { title, subtitle } = data;
 
   return (
     <section className="w-full py-40 bg-black text-white text-center flex flex-col items-center justify-center overflow-hidden relative">

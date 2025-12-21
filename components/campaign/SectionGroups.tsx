@@ -65,8 +65,12 @@ function RadialThermometer({
   );
 }
 
-export default function SectionGroups() {
-  const { groupsRadial, status, statusLabel, nextAction } = MOCK_DB.campaign;
+type SectionGroupsProps = {
+  data: typeof MOCK_DB.campaign;
+};
+
+export default function SectionGroups({ data }: SectionGroupsProps) {
+  const { groupsRadial, status, statusLabel, nextAction } = data;
 
   const vm = buildGroupsPulseVM({
     groupsRadial,

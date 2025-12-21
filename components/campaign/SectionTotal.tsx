@@ -4,8 +4,12 @@ import { MOCK_DB } from '@/lib/campaign/mock';
 import { motion } from 'framer-motion';
 import FadeIn from './FadeIn';
 
-export default function SectionTotal() {
-  const { monthTotal, label } = MOCK_DB.accumulated;
+type SectionTotalProps = {
+  data: typeof MOCK_DB.accumulated;
+};
+
+export default function SectionTotal({ data }: SectionTotalProps) {
+  const { monthTotal, label } = data;
 
   return (
     <section className="w-full py-32 bg-stone-100 flex items-center justify-center">

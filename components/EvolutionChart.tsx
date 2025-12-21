@@ -13,7 +13,7 @@ import {
 import { ChartFrame } from '@/components/charts/ChartFrame';
 
 export type EvolutionPoint = {
-  label: string;
+  day: string;
   value: number;
 };
 
@@ -23,13 +23,13 @@ type EvolutionChartProps = {
 };
 
 const FALLBACK_DATA: EvolutionPoint[] = [
-  { label: 'Mon', value: 24 },
-  { label: 'Tue', value: 36 },
-  { label: 'Wed', value: 31 },
-  { label: 'Thu', value: 49 },
-  { label: 'Fri', value: 52 },
-  { label: 'Sat', value: 41 },
-  { label: 'Sun', value: 58 },
+  { day: 'Mon', value: 24 },
+  { day: 'Tue', value: 36 },
+  { day: 'Wed', value: 31 },
+  { day: 'Thu', value: 49 },
+  { day: 'Fri', value: 52 },
+  { day: 'Sat', value: 41 },
+  { day: 'Sun', value: 58 },
 ];
 
 export default function EvolutionChart({
@@ -47,7 +47,7 @@ export default function EvolutionChart({
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="day"
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"

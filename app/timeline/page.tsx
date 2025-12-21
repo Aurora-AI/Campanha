@@ -1,37 +1,35 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import BIHeader from '@/components/bi/BIHeader';
 import Breadcrumbs from '@/components/nav/Breadcrumbs';
 import EmptyState from '@/components/ui/EmptyState';
 import Skeleton from '@/components/ui/Skeleton';
-import type { Snapshot, StoreMetrics } from '@/lib/analytics/types';
-import { getLatestSnapshot } from '@/lib/analytics/client/getLatestSnapshot';
-
-function pct(v: number) {
-  return `${Math.round(v * 1000) / 10}%`;
-}
+import type { TimelineReportPayload } from '@/lib/campaign/timelineReport';
 
 export default function TimelinePage() {
-  const [snap, setSnap] = useState<Snapshot | null | undefined>(undefined);
+  const [payload, setPayload] = useState<TimelineReportPayload | null | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
-    getLatestSnapshot().then((data) => {
-      if (active) setSnap(data);
-    });
+    const load = async () => {
+      try {
+        const res = await fetch('/api/timeline', { cache: 'no-store' });
+        const data = res.ok ? ((await res.json()) as TimelineReportPayload) : null;
+        if (active) setPayload(data);
+      } catch {
+        if (active) setPayload(null);
+      }
+    };
+    load();
     return () => {
       active = false;
     };
   }, []);
 
-  const topYesterday = useMemo(() => {
-    const rows = (snap?.storeMetrics ?? []) as StoreMetrics[];
-    return [...rows].sort((a, b) => b.approvedYesterday - a.approvedYesterday).slice(0, 10);
-  }, [snap]);
-
-  const isLoading = snap === undefined;
-  const vm = snap?.editorialSummary;
+  const isLoading = payload === undefined;
+  const data = payload && payload.status === 'ok' ? payload : null;
+  const topYesterday = data?.topYesterday ?? [];
 
   return (
     <main className="min-h-[100svh] bg-white">
@@ -39,13 +37,13 @@ export default function TimelinePage() {
         <BIHeader
           title="Timeline"
           subtitle="Leitura temporal em formato editorial. Versao 1: foco no dia anterior e panorama consolidado."
-          updatedAtISO={snap?.updatedAtISO}
+          updatedAtISO={payload?.updatedAtISO}
         />
         <Breadcrumbs />
 
         {isLoading ? (
           <Skeleton rows={8} />
-        ) : !vm ? (
+        ) : !data ? (
           <EmptyState
             title="Nenhum dado publicado"
             description="Publique um CSV em /admin para visualizar os resultados."
@@ -55,20 +53,22 @@ export default function TimelinePage() {
             <div className="grid gap-6 md:grid-cols-2">
               <div className="rounded-sm border border-black/10 bg-white p-6 shadow-sm">
                 <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">
-                  Ontem ({vm.pulse.dayKeyYesterday})
+                  Ontem ({data.pulse.dayKeyYesterday})
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-4">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-black/45">Aprov.</div>
-                    <div className="mt-2 text-2xl font-semibold tabular-nums">{vm.pulse.approvedYesterday}</div>
+                    <div className="mt-2 text-2xl font-semibold tabular-nums">{data.pulse.approvedYesterday}</div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-black/45">Digit.</div>
-                    <div className="mt-2 text-2xl font-semibold tabular-nums">{vm.pulse.submittedYesterday}</div>
+                    <div className="mt-2 text-2xl font-semibold tabular-nums">{data.pulse.submittedYesterday}</div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-black/45">Indice</div>
-                    <div className="mt-2 text-2xl font-semibold tabular-nums">{pct(vm.pulse.approvalRateYesterday)}</div>
+                    <div className="mt-2 text-2xl font-semibold tabular-nums">
+                      {data.pulse.approvalRateYesterdayLabel}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -78,15 +78,17 @@ export default function TimelinePage() {
                 <div className="mt-5 grid grid-cols-3 gap-4">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-black/45">Aprov.</div>
-                    <div className="mt-2 text-2xl font-semibold tabular-nums">{vm.totals.approved}</div>
+                    <div className="mt-2 text-2xl font-semibold tabular-nums">{data.totals.approved}</div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-black/45">Digit.</div>
-                    <div className="mt-2 text-2xl font-semibold tabular-nums">{vm.totals.submitted}</div>
+                    <div className="mt-2 text-2xl font-semibold tabular-nums">{data.totals.submitted}</div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-black/45">Indice</div>
-                    <div className="mt-2 text-2xl font-semibold tabular-nums">{pct(vm.totals.approvalRate)}</div>
+                    <div className="mt-2 text-2xl font-semibold tabular-nums">
+                      {data.totals.approvalRateLabel}
+                    </div>
                   </div>
                 </div>
               </div>

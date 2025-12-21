@@ -1,51 +1,37 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import BIHeader from '@/components/bi/BIHeader';
 import Breadcrumbs from '@/components/nav/Breadcrumbs';
 import EmptyState from '@/components/ui/EmptyState';
 import Skeleton from '@/components/ui/Skeleton';
-import type { Snapshot, StoreMetrics } from '@/lib/analytics/types';
-import { getLatestSnapshot } from '@/lib/analytics/client/getLatestSnapshot';
-
-type SortKey = 'approvedTotal' | 'submittedTotal' | 'approvalRateTotal' | 'approvedYesterday';
-
-function pct(v: number) {
-  return `${Math.round(v * 1000) / 10}%`;
-}
+import type { StoreSortKey, StoresReportPayload } from '@/lib/campaign/storesReport';
 
 export default function StoresPage() {
-  const [snap, setSnap] = useState<Snapshot | null | undefined>(undefined);
+  const [payload, setPayload] = useState<StoresReportPayload | null | undefined>(undefined);
   const [q, setQ] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('approvedTotal');
+  const [sortKey, setSortKey] = useState<StoreSortKey>('approvedTotal');
 
   useEffect(() => {
     let active = true;
-    getLatestSnapshot().then((data) => {
-      if (active) setSnap(data);
-    });
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({ q, sort: sortKey });
+        const res = await fetch(`/api/stores?${params.toString()}`, { cache: 'no-store' });
+        const data = res.ok ? ((await res.json()) as StoresReportPayload) : null;
+        if (active) setPayload(data);
+      } catch {
+        if (active) setPayload(null);
+      }
+    };
+    load();
     return () => {
       active = false;
     };
-  }, []);
+  }, [q, sortKey]);
 
-  const rows = useMemo(() => {
-    const all = (snap?.storeMetrics ?? []) as StoreMetrics[];
-
-    const filtered = q.trim()
-      ? all.filter((r) => (r.store + ' ' + r.group).toLowerCase().includes(q.trim().toLowerCase()))
-      : all;
-
-    const sorted = [...filtered].sort((a, b) => {
-      const av = a[sortKey] as number;
-      const bv = b[sortKey] as number;
-      return bv - av;
-    });
-
-    return sorted;
-  }, [snap, q, sortKey]);
-
-  const isLoading = snap === undefined;
+  const rows = payload?.rows ?? [];
+  const isLoading = payload === undefined;
 
   return (
     <main className="min-h-[100svh] bg-white">
@@ -53,7 +39,7 @@ export default function StoresPage() {
         <BIHeader
           title="Lojas"
           subtitle="KPIs por loja para leitura rapida. Use a busca e a ordenacao para navegar."
-          updatedAtISO={snap?.updatedAtISO}
+          updatedAtISO={payload?.updatedAtISO}
         />
         <Breadcrumbs />
 
@@ -81,7 +67,7 @@ export default function StoresPage() {
                 <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">Ordenar por</div>
                 <select
                   value={sortKey}
-                  onChange={(e) => setSortKey(e.target.value as SortKey)}
+                  onChange={(e) => setSortKey(e.target.value as StoreSortKey)}
                   className="mt-2 w-full rounded-sm border border-black/10 px-4 py-3 text-sm"
                 >
                   <option value="approvedTotal">Aprovadas (total)</option>
@@ -110,7 +96,7 @@ export default function StoresPage() {
                   <div className="col-span-2 text-right tabular-nums">{r.approvedTotal}</div>
                   <div className="col-span-2 text-right tabular-nums">{r.submittedTotal}</div>
                   <div className="col-span-1 text-right tabular-nums">{r.approvedYesterday}</div>
-                  <div className="col-span-2 text-right tabular-nums">{pct(r.approvalRateTotal)}</div>
+                  <div className="col-span-2 text-right tabular-nums">{r.approvalRateTotalLabel}</div>
                 </div>
               ))}
             </div>
