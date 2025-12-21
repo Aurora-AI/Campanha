@@ -23,7 +23,7 @@ export default function WeeklySparkline({ points, targetToday, statusLabel }: Pr
   const height = 140;
   const padding = 16;
   const values = points.map((p) => p.approved);
-  const { base, fill } = colorsForStatus(statusLabel);
+  const { fill } = colorsForStatus(statusLabel);
 
   if (!points.length) {
     return (

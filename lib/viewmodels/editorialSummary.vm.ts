@@ -117,6 +117,10 @@ export function buildEditorialSummaryVM(snapshot: AnyObj | null | undefined): Ed
   const metrics = asRecord(data.metrics) ?? asRecord(root.metrics);
   const headline = asRecord(metrics?.headline) ?? asRecord(root.headline);
   const campaign = asRecord(data.campaign) ?? asRecord(root.campaign);
+  const campaignLeader = asRecord(campaign?.leader);
+  const campaignHighlights = asRecord(campaign?.highlights);
+  const campaignHeadline = asRecord(campaign?.headline);
+  const rootHeadline = asRecord(root.headline);
 
   const updatedAtISO = toISODateFallback(
     root.updatedAtISO ?? root.updatedAt ?? root.publishedAt ?? data.updatedAtISO ?? data.updatedAt ?? data.publishedAt
@@ -151,7 +155,8 @@ export function buildEditorialSummaryVM(snapshot: AnyObj | null | undefined): Ed
     const delta = lastApproved - prevApproved;
     deltaText = `${delta >= 0 ? '+' : ''}${delta} vs dia anterior`;
   } else {
-    const deltaAbs = safeNumber(headline?.deltaVsPrevDay?.abs ?? headline?.deltaAbs, Number.NaN);
+    const deltaVsPrevDay = asRecord(headline?.deltaVsPrevDay);
+    const deltaAbs = safeNumber(deltaVsPrevDay?.abs ?? headline?.deltaAbs, Number.NaN);
     if (Number.isFinite(deltaAbs)) {
       deltaText = `${deltaAbs >= 0 ? '+' : ''}${deltaAbs} vs dia anterior`;
     } else {
@@ -239,9 +244,9 @@ export function buildEditorialSummaryVM(snapshot: AnyObj | null | undefined): Ed
   });
 
   const leaderName = safeString(
-    campaign?.leader?.name ??
+    campaignLeader?.name ??
       campaign?.leaderName ??
-      campaign?.highlights?.leader ??
+      campaignHighlights?.leader ??
       top3[0]?.name ??
       computedTop3[0]?.name,
     '-'
@@ -252,12 +257,14 @@ export function buildEditorialSummaryVM(snapshot: AnyObj | null | undefined): Ed
   const leaderGapNote =
     leaderGap && leaderGap > 0 ? `+${formatCount(leaderGap)} acima do 2o` : undefined;
 
-  const leaderNote =
-    safeString(campaign?.leader?.note ?? campaign?.leaderNote, '') || leaderGapNote;
+  const leaderNote = safeString(campaignLeader?.note ?? campaign?.leaderNote, '') || leaderGapNote;
 
-  const headlineTitle = safeString(campaign?.headline?.title ?? root?.headline?.title, 'Resumo da campanha');
+  const headlineTitle = safeString(
+    campaignHeadline?.title ?? rootHeadline?.title,
+    'Resumo da campanha'
+  );
   const headlineSubtitle = safeString(
-    campaign?.headline?.subtitle ?? root?.headline?.subtitle,
+    campaignHeadline?.subtitle ?? rootHeadline?.subtitle,
     'Indicadores do ultimo processamento do CSV.'
   );
 

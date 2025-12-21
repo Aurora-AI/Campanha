@@ -72,6 +72,13 @@ export function buildStoresReport(
     updatedAtISO,
     query,
     sortKey: options.sortKey,
-    rows: sorted.map(({ approvalRateTotal: _approvalRateTotal, ...rest }) => rest),
+    rows: sorted.map((row) => ({
+      store: row.store,
+      group: row.group,
+      approvedTotal: row.approvedTotal,
+      submittedTotal: row.submittedTotal,
+      approvedYesterday: row.approvedYesterday,
+      approvalRateTotalLabel: row.approvalRateTotalLabel,
+    })),
   };
 }

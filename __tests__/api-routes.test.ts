@@ -7,7 +7,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { NextRequest } from 'next/server';
 
 const putMock = vi.fn();
 const listMock = vi.fn();
@@ -23,7 +22,7 @@ async function loadHandlers() {
   vi.resetModules();
   const publishCsvModule = await import('@/app/api/publish-csv/route');
   const latestModule = await import('@/app/api/latest/route');
-  return { publishCsvHandler: publishCsvModule.POST, latestHandler: latestModule.GET };
+  return { publishCsvModule, latestHandler: latestModule.GET };
 }
 
 function buildCsv(): string {
@@ -58,7 +57,12 @@ describe('API Routes', () => {
 
   describe('POST /api/publish-csv', () => {
     it('deve publicar snapshot com token valido', async () => {
-      const { publishCsvHandler } = await loadHandlers();
+      const { publishCsvModule } = await loadHandlers();
+      const publishMetricsMock = vi.fn().mockResolvedValue(undefined);
+      const publishCsvHandler = publishCsvModule.createPublishCsvHandler({
+        publisher: { publishMetrics: publishMetricsMock },
+        requireToken: false,
+      });
 
       putMock.mockResolvedValueOnce({
         url: 'https://blob.vercel-storage.com/campanha/snapshots/snapshot-2025-01-01-xyz.json',
@@ -67,13 +71,10 @@ describe('API Routes', () => {
       const form = new FormData();
       form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
 
-      const request = new NextRequest('http://localhost:3000/api/publish-csv', {
-        method: 'POST',
-        headers: {
-          'x-admin-token': 'test-secret-token',
-        },
-        body: form,
-      });
+      const request = {
+        headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
+        formData: async () => form,
+      } as unknown as Request;
 
       const response = await publishCsvHandler(request);
       const data = await response.json();
@@ -81,28 +82,23 @@ describe('API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.ok).toBe(true);
       expect(data.proposals).toBe(1);
-      expect(putMock).toHaveBeenCalledWith(
-        expect.stringMatching(/^campanha\/snapshots\/snapshot-/),
-        expect.any(String),
-        expect.objectContaining({
-          access: 'public',
-          token: 'test-blob-token',
-          contentType: 'application/json',
-          addRandomSuffix: true,
-        })
-      );
+      expect(publishMetricsMock).toHaveBeenCalledTimes(1);
     });
 
     it('deve retornar 401 sem token', async () => {
-      const { publishCsvHandler } = await loadHandlers();
+      const { publishCsvModule } = await loadHandlers();
+      const publishCsvHandler = publishCsvModule.createPublishCsvHandler({
+        publisher: { publishMetrics: vi.fn() },
+        requireToken: false,
+      });
 
       const form = new FormData();
       form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
 
-      const request = new NextRequest('http://localhost:3000/api/publish-csv', {
-        method: 'POST',
-        body: form,
-      });
+      const request = {
+        headers: new Headers(),
+        formData: async () => form,
+      } as unknown as Request;
 
       const response = await publishCsvHandler(request);
       const data = await response.json();
