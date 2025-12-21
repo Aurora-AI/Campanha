@@ -1,14 +1,8 @@
+import { NAV_LINKS } from '@/lib/campaign/mock';
 import Link from 'next/link';
 import FadeIn from './FadeIn';
-import type { HomeViewModel } from '@/src/features/home/contracts/homeViewModel';
 
-type FooterProps = {
-  links: HomeViewModel['archive']['links'];
-};
-
-export default function Footer({ links }: FooterProps) {
-  const items = links.length > 0 ? links : [{ label: 'Arquivo', href: '#' }];
-
+export default function Footer() {
   return (
     <footer className="bg-stone-900 text-stone-400 py-24 px-8 md:px-16">
       <FadeIn className="flex flex-col md:flex-row justify-between items-end gap-12">
@@ -22,8 +16,8 @@ export default function Footer({ links }: FooterProps) {
 
         <nav className="flex flex-col md:flex-row gap-8 md:gap-16">
             <div className="flex flex-col gap-4">
-                <span className="text-xs uppercase tracking-widest text-white mb-2">Arquivo</span>
-                {items.map(link => (
+                <span className="text-xs uppercase tracking-widest text-white mb-2">Sitemap</span>
+                {NAV_LINKS.map(link => (
                     <Link key={link.label} href={link.href} className="text-sm hover:text-white transition-colors">
                         {link.label}
                     </Link>

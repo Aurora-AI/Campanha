@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import { MOCK_DB } from '@/lib/campaign/mock';
 import { motion } from 'framer-motion';
 import FadeIn from '../sandbox/FadeIn';
-import type { HomeViewModel } from '@/src/features/home/contracts/homeViewModel';
+import { buildGroupsPulseVM } from '@/lib/viewmodels/groupsPulse.vm';
 
 type RadialThermometerProps = {
   size: number;
@@ -66,11 +66,20 @@ function RadialThermometer({
 }
 
 type SectionGroupsProps = {
-  vm: HomeViewModel['campaign'];
-  action: HomeViewModel['spread']['right'];
+  data: typeof MOCK_DB.campaign;
 };
 
-export default function SectionGroups({ vm, action }: SectionGroupsProps) {
+export default function SectionGroups({ data }: SectionGroupsProps) {
+  const { groupsRadial, status, statusLabel, nextAction } = data;
+
+  const vm = buildGroupsPulseVM({
+    groupsRadial,
+    status,
+    statusLabel,
+    nextAction,
+    size: 120,
+  });
+
   return (
     <section className="w-full bg-stone-50 py-36">
       <div className="mx-auto w-[min(1400px,92vw)]">
@@ -117,19 +126,16 @@ export default function SectionGroups({ vm, action }: SectionGroupsProps) {
           >
             <div>
               <span className="mb-2 block text-xs uppercase tracking-widest text-stone-400">
-                {action.nextActionTitle}
+                Recommended Action
               </span>
               <p className="font-serif text-xl text-stone-800 md:text-2xl">
-                &quot;{action.nextActionReason}&quot;
+                &quot;{vm.nextAction}&quot;
               </p>
             </div>
 
-            <Link
-              href={action.href}
-              className="bg-black px-8 py-4 text-xs uppercase tracking-widest text-white transition-colors hover:bg-stone-800"
-            >
-              Ver detalhes
-            </Link>
+            <button className="bg-black px-8 py-4 text-xs uppercase tracking-widest text-white transition-colors hover:bg-stone-800">
+              Execute Strategy
+            </button>
           </motion.div>
         </FadeIn>
       </div>

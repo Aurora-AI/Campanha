@@ -26,9 +26,8 @@ export default function AdminLoginPage() {
       }
 
       window.location.href = "/admin";
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Falha no login.";
-      setError(message);
+    } catch (err: any) {
+      setError(err?.message ?? "Falha no login.");
     } finally {
       setLoading(false);
     }
@@ -46,7 +45,7 @@ export default function AdminLoginPage() {
             <input
               className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 outline-none"
               value={username}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
             />
           </div>
@@ -57,7 +56,7 @@ export default function AdminLoginPage() {
               className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 outline-none"
               type="password"
               value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
             />
           </div>

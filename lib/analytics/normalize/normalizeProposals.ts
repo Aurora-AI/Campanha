@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { getCampaignConfig, resolveGroup, resolveStoreName } from '@/lib/campaign/config';
 import type { ProposalFact, ProposalStatus } from '@/lib/analytics/types';
-import type { CsvCell, CsvRow } from '@/src/types/data';
+import type { RawRow } from '@/lib/analytics/csv/parseCalceleveCsv';
 
 function normalizeStatus(s: string): ProposalStatus {
   const v = (s || '').trim().toUpperCase();
@@ -19,30 +19,25 @@ function parsePtBrDateToISODate(value: string, tz: string): string | null {
   return dt.isValid ? dt.toISODate() : null;
 }
 
-function cellToString(value: CsvCell): string {
-  if (value == null) return '';
-  return String(value).trim();
-}
-
-export function normalizeProposals(rows: CsvRow[]): ProposalFact[] {
+export function normalizeProposals(rows: RawRow[]): ProposalFact[] {
   const cfg = getCampaignConfig();
   const tz = cfg.timezone;
 
   const out: ProposalFact[] = [];
 
   for (const r of rows) {
-    const cnpj = cellToString(r['CNPJ']);
+    const cnpj = r['CNPJ'] || '';
     const store = resolveStoreName(cnpj, cfg);
     const group = resolveGroup(store, cfg);
 
-    const proposalIdRaw = cellToString(r['Numero da Proposta'] ?? r['Número da Proposta']);
+    const proposalIdRaw = r['Numero da Proposta'] || r['Número da Proposta'] || '';
     const proposalId = Number(String(proposalIdRaw).replace(/\D/g, '')) || 0;
 
-    const statusRaw = cellToString(r['Situacao'] ?? r['Situação']);
+    const statusRaw = r['Situacao'] || r['Situação'] || '';
     const status = normalizeStatus(statusRaw);
 
-    const entryISO = parsePtBrDateToISODate(cellToString(r['Data de entrada']), tz) ?? null;
-    const finISO = parsePtBrDateToISODate(cellToString(r['Data Finalizada']), tz);
+    const entryISO = parsePtBrDateToISODate(r['Data de entrada'] || '', tz) ?? null;
+    const finISO = parsePtBrDateToISODate(r['Data Finalizada'] || '', tz);
 
     if (!entryISO || !proposalId) continue;
 

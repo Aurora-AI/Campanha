@@ -3,16 +3,16 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useEffect, useRef } from 'react';
-import type { HomeViewModel } from '@/src/features/home/contracts/homeViewModel';
+import type { SandboxData } from '@/lib/campaign/mock';
 
 type HeroProps = {
-  cover: HomeViewModel['cover'];
+  data: SandboxData['hero'];
 };
 
-export default function Hero({ cover }: HeroProps) {
+export default function Hero({ data }: HeroProps) {
   const constraintsRef = useRef(null);
   const mediaRef = useRef<HTMLDivElement>(null);
-  const { weeklyGoals, yesterdayApproved, headline, subtitle } = cover;
+  const { weeklyGoals, yesterdayApproved, headline, subheadline } = data;
 
   // Animation Variants
   const containerVariants = {
@@ -78,7 +78,7 @@ export default function Hero({ cover }: HeroProps) {
           {headline}
         </motion.h1>
         <motion.p variants={itemVariants} className="font-sans text-sm md:text-base mt-8 tracking-widest uppercase opacity-80 max-w-md mx-auto">
-            {subtitle}
+            {subheadline}
         </motion.p>
       </motion.div>
 
@@ -100,7 +100,7 @@ export default function Hero({ cover }: HeroProps) {
                 {weeklyGoals.map((g) => (
                     <div key={g.group} className="flex justify-between gap-8 border-b border-stone-100 pb-1">
                         <span>{g.group}</span>
-                        <span className={g.tone === 'good' ? "text-emerald-600" : "text-stone-400"}>
+                        <span className={g.actual >= g.target ? "text-emerald-600" : "text-stone-400"}>
                             {g.actual}/{g.target}
                         </span>
                     </div>

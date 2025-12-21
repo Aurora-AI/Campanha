@@ -1,24 +1,10 @@
 import { CampaignStatus, MOCK_DB, SandboxData } from './mock';
 import { ProposalFact, StoreMetrics } from '@/lib/analytics/types';
 import { DateTime } from 'luxon';
-import type { UnknownRecord } from '@/src/types/data';
 
 // Helper types matching the Mock DB structure
 type GroupGoal = { group: string; actual: number; target: number };
 type SeriesPoint = { day: string; value: number };
-
-function asRecord(input: unknown): UnknownRecord | null {
-  return input && typeof input === 'object' ? (input as UnknownRecord) : null;
-}
-
-function safeNumber(value: unknown, fallback = 0): number {
-  const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function safeString(value: unknown, fallback = ''): string {
-  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
-}
 
 function aggregateGroups(storeMetrics: StoreMetrics[]): GroupGoal[] {
   const groups = new Map<string, { actual: number; target: number }>();
@@ -75,21 +61,16 @@ function normalizeStatus(input: string | null | undefined): CampaignStatus {
   return 'EM_DISPUTA';
 }
 
-export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
-  const root = asRecord(snapshot);
-  const editorialSummary = asRecord(root?.editorialSummary);
-  if (!root || !editorialSummary) {
+export function adaptSnapshotToCampaign(snapshot: any): SandboxData {
+  if (!snapshot || !snapshot.editorialSummary) {
     return {
       ...MOCK_DB,
       hero: { ...MOCK_DB.hero, subheadline: "Sem dados publicados (Showing Demo)" }
     };
   }
 
-  const storeMetrics = Array.isArray(root.storeMetrics) ? (root.storeMetrics as StoreMetrics[]) : [];
-  const proposals = Array.isArray(root.proposals) ? (root.proposals as ProposalFact[]) : [];
-  const hero = asRecord(editorialSummary.hero) ?? {};
-  const pulse = asRecord(editorialSummary.pulse) ?? {};
-  const totals = asRecord(editorialSummary.totals) ?? {};
+  const { editorialSummary, storeMetrics, proposals } = snapshot;
+  const { hero, pulse, totals } = editorialSummary;
 
   // 1. Hero Data
   const weeklyGoals = aggregateGroups(storeMetrics || []);
@@ -99,28 +80,30 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
 
   // 3. Groups (Radial)
   // Re-use aggregation or specific map
-  const groupsRadial = weeklyGoals.map((g) => ({
+  const groupsRadial = weeklyGoals.map(g => ({
     group: g.group,
-    score: g.target > 0 ? Math.round((g.actual / g.target) * 100) : 0,
+    value: g.actual,
+    max: g.target,
+    color: 'emerald' // static for now
   }));
 
   // 4. Comparison
   const yesterdayResult = {
-    value: safeNumber(pulse.approvedYesterday, 0),
+    value: pulse.approvedYesterday,
     label: "Aprovados Ontem",
     delta: "N/A" // comparatives logic could be added
   };
 
-  const campaignStatus = normalizeStatus(safeString(hero.statusLabel, 'EM DISPUTA'));
+  const campaignStatus = normalizeStatus(hero.statusLabel);
 
   return {
     hero: {
-      headline: safeString(hero.headline, "Campanha"),
-      subheadline: safeString(hero.subheadline, "Dados reais do snapshot"),
+      headline: hero.headline || "Campanha",
+      subheadline: hero.subheadline || "Dados reais do snapshot",
       weeklyGoals: weeklyGoals.length > 0 ? weeklyGoals : MOCK_DB.hero.weeklyGoals,
       yesterdayApproved: {
-         value: safeNumber(pulse.approvedYesterday, 0),
-         label: safeString(pulse.kpiLabel, "Ontem")
+         value: pulse.approvedYesterday,
+         label: pulse.kpiLabel || "Ontem"
       }
     },
     movement: {
@@ -128,19 +111,19 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
       timeline
     },
     campaign: {
-      groupsRadial,
+      groupsRadial: groupsRadial as any,
       status: campaignStatus,
-      statusLabel: safeString(hero.statusLabel, "EM DISPUTA"),
+      statusLabel: hero.statusLabel || "EM DISPUTA",
       nextAction: "Ver Detalhes"
     },
     reengagement: MOCK_DB.reengagement, // No data in snapshot for this yet
     kpis: [
-        { label: "Aprovados", value: String(safeNumber(totals.approved, 0)) },
-        { label: "Digitados", value: String(safeNumber(totals.submitted, 0)) },
-        { label: "Aprov %", value: `${Math.round(safeNumber(totals.approvalRate, 0) * 100)}%` }
+        { label: "Aprovados", value: String(totals.approved ?? 0) },
+        { label: "Digitados", value: String(totals.submitted ?? 0) },
+        { label: "Aprov %", value: `${Math.round((totals.approvalRate || 0) * 100)}%` }
     ],
     accumulated: {
-        monthTotal: safeNumber(totals.approved, 0),
+        monthTotal: totals.approved || 0,
         label: "Total Aprovado"
     }
   };

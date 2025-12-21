@@ -1,15 +1,15 @@
 'use client';
 
+import { MOCK_DB } from '@/lib/campaign/mock';
 import { motion } from 'framer-motion';
 import FadeIn from './FadeIn';
-import type { HomeViewModel } from '@/src/features/home/contracts/homeViewModel';
 
 type SectionTotalProps = {
-  data: HomeViewModel['accumulated'];
+  data: typeof MOCK_DB.accumulated;
 };
 
 export default function SectionTotal({ data }: SectionTotalProps) {
-  const { monthTotal, label, note } = data;
+  const { monthTotal, label } = data;
 
   return (
     <section className="w-full py-32 bg-stone-100 flex items-center justify-center">
@@ -31,7 +31,7 @@ export default function SectionTotal({ data }: SectionTotalProps) {
                    />
                </div>
                <p className="mt-12 font-serif italic text-stone-600 text-xl">
-                   &quot;{note ?? 'Leitura de fechamento do periodo.'}&quot;
+                   &quot;Pacing towards a record-breaking quarter.&quot;
                </p>
            </div>
        </FadeIn>

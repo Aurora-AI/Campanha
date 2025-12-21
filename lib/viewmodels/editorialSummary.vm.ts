@@ -1,5 +1,3 @@
-import type { UnknownRecord } from '@/src/types/data';
-
 export type CampaignStatus = 'NO_JOGO' | 'EM_DISPUTA' | 'FORA_DO_RITMO';
 
 export type EditorialSummaryVM = {
@@ -32,11 +30,13 @@ export type EditorialSummaryVM = {
   }>;
 };
 
-function asRecord(input: unknown): UnknownRecord | null {
-  return input && typeof input === 'object' ? (input as UnknownRecord) : null;
+type AnyObj = Record<string, any>;
+
+function asRecord(input: unknown): AnyObj | null {
+  return input && typeof input === 'object' ? (input as AnyObj) : null;
 }
 
-function toISODateFallback(input: unknown): string {
+function toISODateFallback(input: any): string {
   if (typeof input === 'string' && input.length >= 10) return input;
   try {
     return new Date().toISOString();
@@ -45,16 +45,16 @@ function toISODateFallback(input: unknown): string {
   }
 }
 
-function safeNumber(n: unknown, fallback = 0): number {
+function safeNumber(n: any, fallback = 0): number {
   const x = typeof n === 'number' ? n : Number(n);
   return Number.isFinite(x) ? x : fallback;
 }
 
-function safeString(s: unknown, fallback = ''): string {
+function safeString(s: any, fallback = ''): string {
   return typeof s === 'string' && s.trim().length > 0 ? s : fallback;
 }
 
-function normalizeStatus(input: unknown): CampaignStatus {
+function normalizeStatus(input: any): CampaignStatus {
   const raw = safeString(input, '').toUpperCase();
 
   if (raw.includes('NO') && raw.includes('JOGO')) return 'NO_JOGO';
@@ -88,12 +88,12 @@ function formatPercent(value: number): string {
   return `${Math.round(pct)}%`;
 }
 
-function pickLatestWeek(weeks: UnknownRecord | null): UnknownRecord | null {
+function pickLatestWeek(weeks: AnyObj | null): AnyObj | null {
   if (!weeks) return null;
   const entries = Object.entries(weeks);
   if (entries.length === 0) return null;
 
-  let best: UnknownRecord | null = null;
+  let best: AnyObj | null = null;
   let bestTs = Number.NEGATIVE_INFINITY;
 
   for (const [key, week] of entries) {
@@ -111,7 +111,7 @@ function pickLatestWeek(weeks: UnknownRecord | null): UnknownRecord | null {
   return fallback ?? null;
 }
 
-export function buildEditorialSummaryVM(snapshot: unknown): EditorialSummaryVM {
+export function buildEditorialSummaryVM(snapshot: AnyObj | null | undefined): EditorialSummaryVM {
   const root = asRecord(snapshot) ?? {};
   const data = asRecord(root.data) ?? root;
   const metrics = asRecord(data.metrics) ?? asRecord(root.metrics);
@@ -136,9 +136,9 @@ export function buildEditorialSummaryVM(snapshot: unknown): EditorialSummaryVM {
   );
 
   const dailyEvolution = Array.isArray(metrics?.dailyEvolution)
-    ? (metrics?.dailyEvolution as UnknownRecord[])
+    ? (metrics?.dailyEvolution as AnyObj[])
     : Array.isArray(headline?.dailyEvolution)
-      ? (headline?.dailyEvolution as UnknownRecord[])
+      ? (headline?.dailyEvolution as AnyObj[])
       : [];
 
   const lastDay = dailyEvolution[dailyEvolution.length - 1];
@@ -184,10 +184,9 @@ export function buildEditorialSummaryVM(snapshot: unknown): EditorialSummaryVM {
   );
 
   const top3Candidate =
-    (Array.isArray(campaign?.top3) && (campaign?.top3 as UnknownRecord[])) ||
-    (Array.isArray(metrics?.top3) && (metrics?.top3 as UnknownRecord[])) ||
-    (Array.isArray(asRecord(metrics?.leaderboard)?.top3) &&
-      (asRecord(metrics?.leaderboard)?.top3 as UnknownRecord[])) ||
+    (Array.isArray(campaign?.top3) && campaign?.top3) ||
+    (Array.isArray(metrics?.top3) && metrics?.top3) ||
+    (Array.isArray(asRecord(metrics?.leaderboard)?.top3) && asRecord(metrics?.leaderboard)?.top3) ||
     [];
 
   const weeks = asRecord(metrics?.weeks);

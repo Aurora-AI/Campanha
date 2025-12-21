@@ -1,14 +1,14 @@
 'use client';
 
+import { MOCK_DB } from '@/lib/campaign/mock';
 import { motion } from 'framer-motion';
-import type { HomeViewModel } from '@/src/features/home/contracts/homeViewModel';
 
 type SectionReengagementProps = {
-  data: HomeViewModel['reengagement'];
+  data: typeof MOCK_DB.reengagement;
 };
 
 export default function SectionReengagement({ data }: SectionReengagementProps) {
-  const { title, subtitle, ctaLabel } = data;
+  const { title, subtitle } = data;
 
   return (
     <section className="w-full py-40 bg-black text-white text-center flex flex-col items-center justify-center overflow-hidden relative">
@@ -29,7 +29,7 @@ export default function SectionReengagement({ data }: SectionReengagementProps) 
            </p>
 
            <button className="mt-12 px-8 py-4 border border-white/30 text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all duration-300">
-               {ctaLabel}
+               Initiate Recovery Protocol
            </button>
        </motion.div>
 
