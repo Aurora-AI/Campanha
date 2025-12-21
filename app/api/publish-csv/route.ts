@@ -17,7 +17,8 @@ export async function POST(req: Request) {
     const token = req.headers.get('x-admin-token') || '';
     const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
     const headerOk = !!ADMIN_TOKEN && token === ADMIN_TOKEN;
-    const cookie = cookies().get('mycelium_admin')?.value;
+    const cookieStore = await cookies();
+    const cookie = cookieStore.get('mycelium_admin')?.value;
     const cookieOk = cookie ? await verifyAdminCookie(cookie) : false;
     if (!headerOk && !cookieOk) return unauthorized();
 
