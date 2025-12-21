@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import CampaignTrend from '@/components/editorial/CampaignTrend';
 import DailyDonut from '@/components/editorial/DailyDonut';
 import HeroGlass from '@/components/hero/HeroGlass';
@@ -100,6 +101,14 @@ export default async function HomePage() {
       />
 
       <div className="mx-auto w-[min(1200px,92vw)] py-10 space-y-10">
+        <div className="flex justify-end">
+          <Link
+            href="/admin"
+            className="rounded-full border border-black/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-black/60 hover:text-black"
+          >
+            Admin
+          </Link>
+        </div>
         <section className="grid gap-6 lg:grid-cols-2">
           <StoreTotalsLedger rows={storeTotals} />
           <TopYesterdayLedger rows={topYesterdaySorted} />
