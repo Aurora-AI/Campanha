@@ -16,10 +16,10 @@ export default async function HomePage() {
   const data = adaptSnapshotToCampaign(snapshot);
 
   return (
-    <>
+      <>
       <Header />
       <Hero data={data.hero} />
-      <SectionYesterday data={data.movement.timeline as any} />
+      <SectionYesterday data={data.movement.timeline} />
       <SectionGroups data={data.campaign} />
       <SectionReengagement data={data.reengagement} />
       <SectionKPIs data={data.kpis} />

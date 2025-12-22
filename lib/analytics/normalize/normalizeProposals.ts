@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { getCampaignConfig, resolveGroup, resolveStoreName } from '@/lib/campaign/config';
 import type { ProposalFact, ProposalStatus } from '@/lib/analytics/types';
-import type { RawRow } from '@/lib/analytics/csv/parseCalceleveCsv';
+import type { CsvCell, CsvRow } from '@/lib/data';
 
 function normalizeStatus(s: string): ProposalStatus {
   const v = (s || '').trim().toUpperCase();
@@ -19,25 +19,40 @@ function parsePtBrDateToISODate(value: string, tz: string): string | null {
   return dt.isValid ? dt.toISODate() : null;
 }
 
-export function normalizeProposals(rows: RawRow[]): ProposalFact[] {
+function cellToString(cell: CsvCell): string {
+  if (cell == null) return '';
+  return String(cell).trim();
+}
+
+function firstValue(row: CsvRow, keys: string[]): string {
+  for (const k of keys) {
+    const v = cellToString(row[k]);
+    if (v) return v;
+  }
+  return '';
+}
+
+export function normalizeProposals(rows: CsvRow[]): ProposalFact[] {
   const cfg = getCampaignConfig();
   const tz = cfg.timezone;
 
   const out: ProposalFact[] = [];
 
   for (const r of rows) {
-    const cnpj = r['CNPJ'] || '';
+    const cnpj = firstValue(r, ['cnpj']);
     const store = resolveStoreName(cnpj, cfg);
     const group = resolveGroup(store, cfg);
 
-    const proposalIdRaw = r['Numero da Proposta'] || r['Número da Proposta'] || '';
+    const proposalIdRaw = firstValue(r, ['numero da proposta', 'numero proposta', 'n proposta', 'n da proposta']);
     const proposalId = Number(String(proposalIdRaw).replace(/\D/g, '')) || 0;
 
-    const statusRaw = r['Situacao'] || r['Situação'] || '';
+    const statusRaw = firstValue(r, ['situacao', 'status']);
     const status = normalizeStatus(statusRaw);
 
-    const entryISO = parsePtBrDateToISODate(r['Data de entrada'] || '', tz) ?? null;
-    const finISO = parsePtBrDateToISODate(r['Data Finalizada'] || '', tz);
+    const entryISO =
+      parsePtBrDateToISODate(firstValue(r, ['data de entrada', 'data entrada', 'data da proposta', 'data proposta']), tz) ??
+      null;
+    const finISO = parsePtBrDateToISODate(firstValue(r, ['data finalizada', 'data finalizada em', 'data finalizada']), tz);
 
     if (!entryISO || !proposalId) continue;
 

@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { POST as uploadHandler } from "@/app/api/upload/route";
+import { createUploadHandler } from "@/app/api/upload/route";
 import { GET as metricsHandler } from "@/app/api/metrics/route";
 import { metricsPayloadSchema } from "../contract/metrics.schema";
 import { getLastPutJson, okJson } from "../helpers/blobMock";
 import { loadFixtureText } from "../helpers/makeRows";
+import { createNoopPublisher } from "@/lib/publisher";
 
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(),
@@ -12,6 +13,21 @@ vi.mock("@vercel/blob", () => ({
 }));
 
 import { head, put } from "@vercel/blob";
+
+const originalBlobToken = process.env.BLOB_READ_WRITE_TOKEN;
+
+beforeEach(() => {
+  process.env.BLOB_READ_WRITE_TOKEN = "test-blob-token";
+});
+
+afterEach(() => {
+  process.env.BLOB_READ_WRITE_TOKEN = originalBlobToken;
+});
+
+const uploadHandler = createUploadHandler({
+  publisher: createNoopPublisher(),
+  requireToken: false,
+});
 
 describe("integration: upload → metrics (cards-only)", () => {
   it("aceita TSV cards-only, persiste no blob e calcula métricas sem colunas financeiras", async () => {

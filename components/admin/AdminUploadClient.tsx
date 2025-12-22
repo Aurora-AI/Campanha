@@ -35,8 +35,9 @@ export default function AdminUploadClient() {
       if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
 
       setResult(json);
-    } catch (e: any) {
-      setResult({ ok: false, error: e?.message ?? "Falha ao publicar." });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Falha ao publicar.";
+      setResult({ ok: false, error: message });
     } finally {
       setLoading(false);
     }
@@ -60,7 +61,7 @@ export default function AdminUploadClient() {
         <input
           type="file"
           accept=".csv,text/csv"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
         />
 
         <button

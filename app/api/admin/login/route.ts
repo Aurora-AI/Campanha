@@ -43,10 +43,10 @@ export async function POST(req: Request) {
     });
 
     return res;
-  } catch (e: any) {
-    console.error("ADMIN LOGIN ERROR:", e);
+  } catch (error: unknown) {
+    console.error("ADMIN LOGIN ERROR:", error instanceof Error ? error.message : error);
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Erro interno." },
+      { ok: false, error: error instanceof Error ? error.message : "Erro interno." },
       { status: 500 }
     );
   }

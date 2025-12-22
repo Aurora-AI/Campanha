@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { weeklyTargetTotal, type CampaignConfig } from '@/lib/campaign/config';
 import type { EditorialSummaryVM, ProposalFact, StatusLabel, StoreMetrics } from '@/lib/analytics/types';
+import type { UnknownRecord } from '@/lib/data';
 
 type StoreStats = {
   store: string;
@@ -24,10 +25,14 @@ export type EditorialSummaryPayload = Omit<EditorialSummaryVM, 'dailyEditorial' 
 };
 
 type BuildEditorialSummaryOptions = {
-  snapshot: any | null | undefined;
+  snapshot: unknown | null | undefined;
   config: CampaignConfig;
   now?: DateTime;
 };
+
+function asRecord(input: unknown): UnknownRecord | null {
+  return input && typeof input === 'object' ? (input as UnknownRecord) : null;
+}
 
 function statusFromDayRatio(ratio: number): StatusLabel {
   if (ratio >= 1) return 'NO JOGO';
@@ -171,21 +176,37 @@ export function buildEditorialSummaryPayload({
     return fallbackSummary;
   }
 
-  const summary = {
+  const snapshotObj = asRecord(snapshot);
+  if (!snapshotObj) return fallbackSummary;
+
+  const snapshotEditorial = asRecord(snapshotObj.editorialSummary);
+  const snapshotHero = asRecord(snapshotEditorial?.hero);
+  const snapshotPulse = asRecord(snapshotEditorial?.pulse);
+  const snapshotTotals = asRecord(snapshotEditorial?.totals);
+  const snapshotHighlights = asRecord(snapshotEditorial?.highlights);
+
+  type SummaryDraft = EditorialSummaryPayload & {
+    dailyEditorial?: EditorialSummaryVM['dailyEditorial'];
+    weeklyEditorial?: EditorialSummaryVM['weeklyEditorial'];
+  };
+
+  const summary: SummaryDraft = {
     ...fallbackSummary,
-    ...(snapshot.editorialSummary ?? {}),
-    hero: { ...fallbackSummary.hero, ...(snapshot.editorialSummary?.hero ?? {}) },
-    pulse: { ...fallbackSummary.pulse, ...(snapshot.editorialSummary?.pulse ?? {}) },
-    totals: { ...fallbackSummary.totals, ...(snapshot.editorialSummary?.totals ?? {}) },
-    highlights: { ...fallbackSummary.highlights, ...(snapshot.editorialSummary?.highlights ?? {}) },
+    ...(snapshotEditorial ?? {}),
+    hero: { ...fallbackSummary.hero, ...(snapshotHero ?? {}) },
+    pulse: { ...fallbackSummary.pulse, ...(snapshotPulse ?? {}) },
+    totals: { ...fallbackSummary.totals, ...(snapshotTotals ?? {}) },
+    highlights: { ...fallbackSummary.highlights, ...(snapshotHighlights ?? {}) },
   };
 
   summary.hero.headline = config.campaignName;
   summary.hero.subheadline = config.taglinePt;
   const { dailyEditorial: _dailyEditorial, weeklyEditorial: _weeklyEditorial, ...summaryBase } = summary;
+  void _dailyEditorial;
+  void _weeklyEditorial;
 
-  const proposals = Array.isArray(snapshot.proposals) ? (snapshot.proposals as ProposalFact[]) : [];
-  const storeMetrics = Array.isArray(snapshot.storeMetrics) ? (snapshot.storeMetrics as StoreMetrics[]) : [];
+  const proposals = Array.isArray(snapshotObj.proposals) ? (snapshotObj.proposals as ProposalFact[]) : [];
+  const storeMetrics = Array.isArray(snapshotObj.storeMetrics) ? (snapshotObj.storeMetrics as StoreMetrics[]) : [];
   const useFinalized = config.useFinalizedDateForApprovals;
 
   const yesterdayKey = yesterday.toISODate() ?? '-';

@@ -1,7 +1,7 @@
 // Client-only loader for the public latest snapshot
 // Ensures no caching and simple status mapping without throwing
 
-export type LatestSnapshot = Record<string, any>;
+export type LatestSnapshot = Record<string, unknown>;
 
 export type LatestResult =
   | { status: 'empty' }

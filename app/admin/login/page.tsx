@@ -8,7 +8,7 @@ export default function AdminLoginPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -26,8 +26,9 @@ export default function AdminLoginPage() {
       }
 
       window.location.href = "/admin";
-    } catch (err: any) {
-      setError(err?.message ?? "Falha no login.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Falha no login.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -45,7 +46,7 @@ export default function AdminLoginPage() {
             <input
               className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 outline-none"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
               autoComplete="username"
             />
           </div>
@@ -56,7 +57,7 @@ export default function AdminLoginPage() {
               className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 outline-none"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               autoComplete="current-password"
             />
           </div>
