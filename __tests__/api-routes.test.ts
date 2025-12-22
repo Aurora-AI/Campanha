@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { DateTime } from 'luxon';
 
 const putMock = vi.fn();
 const listMock = vi.fn();
@@ -34,6 +35,17 @@ function buildCsv(): string {
     'Resumo 4',
     'CNPJ;Número da Proposta;Situação;Data de entrada;Data Finalizada',
     '07316252000769;123;APROVADA;19/12/2025 09:22;19/12/2025 10:00',
+  ].join('\n');
+}
+
+function buildCsvWithDates(args: { entry: string; finalized?: string }): string {
+  return [
+    'Resumo 1',
+    'Resumo 2',
+    'Resumo 3',
+    'Resumo 4',
+    'CNPJ;Número da Proposta;Situação;Data de entrada;Data Finalizada',
+    `07316252000769;123;APROVADA;${args.entry};${args.finalized ?? ''}`,
   ].join('\n');
 }
 
@@ -174,79 +186,120 @@ describe('API Routes', () => {
 
   describe('POST /api/publish-month', () => {
     it('deve bloquear ingestão do mês corrente', async () => {
-      vi.useFakeTimers();
-      try {
-        vi.setSystemTime(new Date('2025-12-15T15:00:00.000Z')); // 12:00 em São Paulo
+      const nowSP = DateTime.now().setZone('America/Sao_Paulo');
+      const { publishMonthHandler } = await loadHandlers();
 
-        const { publishMonthHandler } = await loadHandlers();
+      const form = new FormData();
+      form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
+      form.append('year', String(nowSP.year));
+      form.append('month', String(nowSP.month));
 
-        const form = new FormData();
-        form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
-        form.append('year', '2025');
-        form.append('month', '12');
+      const request = {
+        headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
+        formData: async () => form,
+      } as unknown as Request;
 
-        const request = {
-          headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
-          formData: async () => form,
-        } as unknown as Request;
+      const response = await publishMonthHandler(request);
+      const data = await response.json();
 
-        const response = await publishMonthHandler(request);
-        const data = await response.json();
-
-        expect(response.status).toBe(400);
-        expect(data.error).toBe('CURRENT_MONTH_IS_LIVE');
-      } finally {
-        vi.useRealTimers();
-      }
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('CURRENT_MONTH_IS_LIVE');
     });
 
     it('deve bloquear duplicidade de mês por padrão', async () => {
-      vi.useFakeTimers();
-      try {
-        vi.setSystemTime(new Date('2025-12-15T15:00:00.000Z')); // 12:00 em São Paulo
+      const nowSP = DateTime.now().setZone('America/Sao_Paulo');
+      const prev = nowSP.minus({ months: 1 });
+      const { publishMonthHandler } = await loadHandlers();
 
-        const { publishMonthHandler } = await loadHandlers();
+      headMock.mockResolvedValueOnce({
+        url: 'https://example.com/campanha/monthly/index.json',
+      });
 
-        headMock.mockResolvedValueOnce({
-          url: 'https://example.com/campanha/monthly/index.json',
-        });
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          schemaVersion: 'campaign-monthly-index/v1',
+          updatedAtISO: '2025-12-10T00:00:00.000Z',
+          months: [
+            {
+              year: prev.year,
+              month: prev.month,
+              source: 'sample.csv',
+              uploadedAtISO: '2025-12-01T00:00:00.000Z',
+              pathname: 'campanha/monthly/prev.json',
+            },
+          ],
+        }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
 
-        const fetchMock = vi.fn().mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            schemaVersion: 'campaign-monthly-index/v1',
-            updatedAtISO: '2025-12-10T00:00:00.000Z',
-            months: [
-              {
-                year: 2025,
-                month: 11,
-                source: 'sample.csv',
-                uploadedAtISO: '2025-12-01T00:00:00.000Z',
-                pathname: 'campanha/monthly/2025-11.json',
-              },
-            ],
-          }),
-        });
-        vi.stubGlobal('fetch', fetchMock);
+      const form = new FormData();
+      form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
+      form.append('year', String(prev.year));
+      form.append('month', String(prev.month));
 
-        const form = new FormData();
-        form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
-        form.append('year', '2025');
-        form.append('month', '11');
+      const request = {
+        headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
+        formData: async () => form,
+      } as unknown as Request;
 
-        const request = {
-          headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
-          formData: async () => form,
-        } as unknown as Request;
+      const response = await publishMonthHandler(request);
+      const data = await response.json();
 
-        const response = await publishMonthHandler(request);
-        const data = await response.json();
+      expect(response.status).toBe(409);
+      expect(data.error).toBe('MONTH_ALREADY_EXISTS');
+    });
 
-        expect(response.status).toBe(409);
-        expect(data.error).toBe('MONTH_ALREADY_EXISTS');
-      } finally {
-        vi.useRealTimers();
-      }
+    it('deve aceitar finalização fora do mês (spillover)', async () => {
+      const nowSP = DateTime.now().setZone('America/Sao_Paulo');
+      const prev = nowSP.minus({ months: 1 });
+      const entry = prev.endOf('month').toFormat('dd/LL/yyyy') + ' 09:22';
+      const finalized = prev.plus({ months: 1 }).startOf('month').toFormat('dd/LL/yyyy') + ' 10:00';
+
+      const { publishMonthHandler } = await loadHandlers();
+
+      const form = new FormData();
+      form.append('file', new File([buildCsvWithDates({ entry, finalized })], 'sample.csv', { type: 'text/csv' }));
+      form.append('year', String(prev.year));
+      form.append('month', String(prev.month));
+      form.append('overwrite', '1');
+
+      const request = {
+        headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
+        formData: async () => form,
+      } as unknown as Request;
+
+      const response = await publishMonthHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(data.spilloverFinalizedOutsideMonthCount).toBe(1);
+      expect(data.canonicalMonthField?.key).toBe('data de entrada');
+    });
+
+    it('deve bloquear cadastro fora do mês selecionado', async () => {
+      const nowSP = DateTime.now().setZone('America/Sao_Paulo');
+      const prev = nowSP.minus({ months: 1 });
+
+      const { publishMonthHandler } = await loadHandlers();
+
+      const form = new FormData();
+      form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
+      form.append('year', String(prev.year));
+      form.append('month', String(prev.month));
+      form.append('overwrite', '1');
+
+      const request = {
+        headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
+        formData: async () => form,
+      } as unknown as Request;
+
+      const response = await publishMonthHandler(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('CADASTRO_DATE_OUTSIDE_MONTH');
     });
   });
 });

@@ -9,6 +9,7 @@ export type ParsedCsv = {
   meta: {
     delimiter: CsvDelimiter;
     headers: string[];
+    normalizedHeaders: string[];
     headerIndex: number;
     parsedRows: number;
   };
@@ -82,6 +83,7 @@ export async function parseCalceleveCsv(input: string | Blob): Promise<Result<Pa
         meta: {
           delimiter,
           headers: header,
+          normalizedHeaders,
           headerIndex,
           parsedRows: out.length,
         },

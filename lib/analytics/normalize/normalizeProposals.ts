@@ -1,22 +1,14 @@
-import { DateTime } from 'luxon';
 import { getCampaignConfig, resolveGroup, resolveStoreName } from '@/lib/campaign/config';
 import type { ProposalFact, ProposalStatus } from '@/lib/analytics/types';
 import type { CsvCell, CsvRow } from '@/lib/data';
+import { parsePtBrDateToISODate } from '@/lib/analytics/normalize/parsePtBrDate';
+import { resolveCanonicalMonthDateField } from '@/lib/analytics/normalize/resolveCanonicalMonthDateField';
 
 function normalizeStatus(s: string): ProposalStatus {
   const v = (s || '').trim().toUpperCase();
   if (v === 'APROVADO' || v === 'APROVADA') return 'APROVADO';
   if (v === 'REPROVADO' || v === 'REPROVADA') return 'REPROVADO';
   return 'OUTROS';
-}
-
-function parsePtBrDateToISODate(value: string, tz: string): string | null {
-  const v = (value || '').trim();
-  if (!v) return null;
-
-  const datePart = v.split(' ')[0];
-  const dt = DateTime.fromFormat(datePart, 'dd/MM/yyyy', { zone: tz });
-  return dt.isValid ? dt.toISODate() : null;
 }
 
 function cellToString(cell: CsvCell): string {
@@ -32,9 +24,28 @@ function firstValue(row: CsvRow, keys: string[]): string {
   return '';
 }
 
-export function normalizeProposals(rows: CsvRow[]): ProposalFact[] {
+export function normalizeProposals(
+  rows: CsvRow[],
+  options: {
+    entryDateKey?: string;
+  } = {}
+): ProposalFact[] {
   const cfg = getCampaignConfig();
   const tz = cfg.timezone;
+
+  const keyInfo =
+    !options.entryDateKey
+      ? resolveCanonicalMonthDateField({
+          headers: rows[0] ? Object.keys(rows[0]) : [],
+          rows,
+          tz,
+        })
+      : null;
+  const entryKeys = options.entryDateKey
+    ? [options.entryDateKey]
+    : keyInfo?.key
+      ? [keyInfo.key]
+      : ['data de entrada', 'data entrada', 'data da proposta', 'data proposta'];
 
   const out: ProposalFact[] = [];
 
@@ -49,9 +60,7 @@ export function normalizeProposals(rows: CsvRow[]): ProposalFact[] {
     const statusRaw = firstValue(r, ['situacao', 'status']);
     const status = normalizeStatus(statusRaw);
 
-    const entryISO =
-      parsePtBrDateToISODate(firstValue(r, ['data de entrada', 'data entrada', 'data da proposta', 'data proposta']), tz) ??
-      null;
+    const entryISO = parsePtBrDateToISODate(firstValue(r, entryKeys), tz) ?? null;
     const finISO = parsePtBrDateToISODate(firstValue(r, ['data finalizada', 'data finalizada em', 'data finalizada']), tz);
 
     if (!entryISO || !proposalId) continue;

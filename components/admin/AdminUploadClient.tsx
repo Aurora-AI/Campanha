@@ -11,6 +11,8 @@ type PublishResult = {
   error?: string;
   months?: number;
   updatedAtISO?: string;
+  spilloverFinalizedOutsideMonthCount?: number;
+  canonicalMonthField?: { key: string; strategy: string };
 };
 
 type MonthlyIndex = {
@@ -274,6 +276,12 @@ export default function AdminUploadClient() {
             ) : (
               <div className="space-y-1">
                 <p className="text-green-700">Mês publicado e indexado.</p>
+                {typeof monthlyResult.spilloverFinalizedOutsideMonthCount === "number" &&
+                monthlyResult.spilloverFinalizedOutsideMonthCount > 0 ? (
+                  <p className="text-neutral-700">
+                    Aviso: {monthlyResult.spilloverFinalizedOutsideMonthCount} registros finalizaram fora do mês (normal).
+                  </p>
+                ) : null}
                 {typeof monthlyResult.months === "number" ? (
                   <p className="text-neutral-700">Meses no índice: {monthlyResult.months}</p>
                 ) : null}

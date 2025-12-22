@@ -12,8 +12,22 @@ export type MonthlySnapshotPayload = {
     month: number;
     uploadedAtISO: string;
     sourceFileName: string;
+    audit?: MonthlyAudit;
   };
   snapshot: Snapshot;
+};
+
+export type MonthlyAudit = {
+  monthKey: string;
+  canonicalMonthField: {
+    key: string;
+    strategy: 'keyword_match' | 'statistical_fallback' | 'default';
+  };
+  totalRows: number;
+  invalidCadastroDateRows: number;
+  spillover: {
+    finalizedOutsideMonthCount: number;
+  };
 };
 
 export type MonthlyIndex = {
@@ -25,6 +39,7 @@ export type MonthlyIndex = {
     source: string;
     uploadedAtISO: string;
     pathname: string;
+    audit?: MonthlyAudit;
   }>;
   current?: { year: number; month: number };
 };
@@ -88,6 +103,7 @@ export async function publishMonthlySnapshot(args: {
   month: number;
   sourceFileName: string;
   snapshot: Snapshot;
+  audit?: MonthlyAudit;
   allowOverwrite?: boolean;
 }): Promise<MonthlyIndex> {
   const token = getBlobToken();
@@ -103,6 +119,7 @@ export async function publishMonthlySnapshot(args: {
       month: args.month,
       uploadedAtISO: nowISO,
       sourceFileName: args.sourceFileName,
+      ...(args.audit ? { audit: args.audit } : {}),
     },
     snapshot: args.snapshot,
   };
@@ -129,6 +146,7 @@ export async function publishMonthlySnapshot(args: {
     source: args.sourceFileName,
     uploadedAtISO: nowISO,
     pathname,
+    ...(args.audit ? { audit: args.audit } : {}),
   });
 
   months.sort((a, b) => (a.year - b.year) || (a.month - b.month));

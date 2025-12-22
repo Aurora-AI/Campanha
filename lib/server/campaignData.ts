@@ -13,7 +13,7 @@ function sanitizePayload(input: unknown): unknown {
   const metaRec = metaObj as AnyRecord;
   // Drop debug fields that are not meant for public usage.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { headers, skippedPreambleRows, ...safeMeta } = metaRec;
+  const { headers, normalizedHeaders, skippedPreambleRows, ...safeMeta } = metaRec;
 
   return { ...record, meta: safeMeta };
 }

@@ -5,10 +5,10 @@ import { cookies } from 'next/headers';
 import { verifyAdminCookie } from '@/lib/admin/auth';
 import { getBlobToken } from '@/lib/publisher';
 import { parseCalceleveCsv } from '@/lib/analytics/csv/parseCalceleveCsv';
-import { normalizeProposals } from '@/lib/analytics/normalize/normalizeProposals';
 import { computeSnapshot } from '@/lib/analytics/compute/computeSnapshot';
 import { getCampaignConfig } from '@/lib/campaign/config';
 import { loadMonthlyIndex, publishMonthlySnapshot } from '@/lib/server/monthlySnapshots';
+import { validateMonthlyIngestion } from '@/lib/server/validateMonthlyIngestion';
 import { getFormDataFileName, readFormDataFileText } from '@/lib/server/readUploadBlob';
 
 export const runtime = 'nodejs';
@@ -103,32 +103,28 @@ export async function POST(req: Request) {
     const parsed = await parseCalceleveCsv(text);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const proposals = normalizeProposals(parsed.value.rows);
-    if (proposals.length === 0) return badRequest('EMPTY_DATASET');
+    const validation = validateMonthlyIngestion({ parsed: parsed.value, year, month, tz });
+    if (!validation.ok) return NextResponse.json(validation.body, { status: validation.status });
 
-    const isInMonth = (iso: string): boolean => {
-      const dt = DateTime.fromISO(iso, { zone: tz }).startOf('day');
-      return dt.isValid && dt.year === year && dt.month === month;
-    };
-
-    const days = new Set<string>();
-    for (const p of proposals) {
-      days.add(p.entryDateISO);
-      if (!isInMonth(p.entryDateISO)) return badRequest('ENTRY_DATE_OUTSIDE_MONTH');
-      if (p.finalizedDateISO && !isInMonth(p.finalizedDateISO)) return badRequest('FINALIZED_DATE_OUTSIDE_MONTH');
-    }
-    if (days.size > 31) return badRequest('TOO_MANY_DAYS');
-
-    const snapshot = computeSnapshot(proposals);
+    const snapshot = computeSnapshot(validation.proposals);
     const sourceFileName = getFormDataFileName(file, 'upload.csv');
 
-    const next = await publishMonthlySnapshot({ year, month, sourceFileName, snapshot, allowOverwrite: overwrite });
+    const next = await publishMonthlySnapshot({
+      year,
+      month,
+      sourceFileName,
+      snapshot,
+      audit: validation.audit,
+      allowOverwrite: overwrite,
+    });
     return NextResponse.json(
       {
         ok: true,
         current: next.current,
         months: next.months.length,
         updatedAtISO: next.updatedAtISO,
+        spilloverFinalizedOutsideMonthCount: validation.spilloverFinalizedOutsideMonthCount,
+        canonicalMonthField: validation.canonicalMonthField,
       },
       { status: 200 }
     );
