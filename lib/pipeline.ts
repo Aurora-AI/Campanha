@@ -1,7 +1,7 @@
 import Papa from "papaparse";
 import { parse, startOfWeek, format, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CNPJ_MAP } from "./cnpjMap";
+import { resolveStoreNameFromCnpj } from "@/lib/campaign/storeCatalog";
 
 // --- TIPOS ---
 export type SituationFlags = {
@@ -140,7 +140,7 @@ const buildDashboardData = (allRows: string[][]): DashboardData => {
     const weekId = getWeekId(dataEntradaRaw);
     const stage = getStage(dataEntradaRaw);
     const cnpj = (rowObj["CNPJ"] ?? "").trim();
-    const lojaNome = CNPJ_MAP[cnpj] || `DESCONHECIDA (${cnpj})`;
+    const lojaNome = resolveStoreNameFromCnpj(cnpj) || `DESCONHECIDA (${cnpj})`;
     const flags = normalizeSituation(rowObj["Situação"]);
 
     total++;

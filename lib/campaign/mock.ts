@@ -164,7 +164,7 @@ export const MOCK_DB: SandboxData = {
         { groupId: 'Grupo C', target: 66, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
       ],
       byStore: [
-        { storeId: 'LOJA 01', storeName: 'Loja 01', source: 'config/campaign.config.json:storeByCnpjDigits' },
+        { storeId: 'LOJA 01', storeName: 'Loja 01', source: 'lib/campaign/storeCatalog.ts' },
       ],
     },
   },

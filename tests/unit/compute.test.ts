@@ -32,8 +32,8 @@ describe("metrics/compute (cards-only)", () => {
     expect("firstPurchaseTicketAvg" in (payload.stores[0] as any)).toBe(false);
 
     const byStore = new Map(payload.stores.map((s) => [s.store, s]));
-    const loja16 = byStore.get("LOJA 16 Cerro Azul - Centro");
-    const loja06 = byStore.get("LOJA 06 Rio Branco do Sul - Centro");
+    const loja16 = byStore.get("LOJA 16 CENTRO");
+    const loja06 = byStore.get("LOJA 06 CENTRO");
 
     expect(loja16?.approved).toBe(2);
     expect(loja16?.rejected).toBe(0);
@@ -62,7 +62,7 @@ describe("metrics/compute (cards-only)", () => {
     ];
 
     const payload = computeMetrics({ uploadedAt: "2025-12-13T00:00:00Z", rawRows });
-    const store = payload.stores.find((s) => s.store === "LOJA 16 Cerro Azul - Centro");
+    const store = payload.stores.find((s) => s.store === "LOJA 16 CENTRO");
     expect(store?.decided).toBe(0);
     expect(store?.approvalRate).toBeNull();
   });

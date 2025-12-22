@@ -1,5 +1,5 @@
 import { formatIsoDateUTC, parseDateCellUTC } from "./time";
-import { CNPJ_MAP } from "../cnpjMap";
+import { resolveStoreNameFromCnpj } from "@/lib/campaign/storeCatalog";
 
 export type StatusClass = "APROVADO" | "EM_ANDAMENTO" | "REPROVADO" | "IGNORADO";
 
@@ -65,7 +65,7 @@ const normalizeCnpj = (value: string): string | undefined => {
 };
 
 const storeFromCnpj = (cnpj: string | undefined): string | undefined =>
-  cnpj ? CNPJ_MAP[cnpj] ?? `CNPJ ${cnpj}` : undefined;
+  cnpj ? resolveStoreNameFromCnpj(cnpj) ?? `CNPJ ${cnpj}` : undefined;
 
 const findColumnIndex = (headers: string[], patterns: string[]): number | undefined => {
   const normalized = headers.map(normalizeText);

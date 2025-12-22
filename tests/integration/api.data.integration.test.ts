@@ -32,6 +32,7 @@ describe("integration: GET /api/data", () => {
       meta: { ...((blobPayload as any).meta ?? {}) },
     };
     delete expected.meta.headers;
+    delete expected.meta.normalizedHeaders;
     delete expected.meta.skippedPreambleRows;
     expect(json).toEqual(expected);
   });
@@ -56,6 +57,7 @@ describe("integration: GET /api/data", () => {
 
     const json = await res.json();
     expect((json as any).meta).not.toHaveProperty("headers");
+    expect((json as any).meta).not.toHaveProperty("normalizedHeaders");
     expect((json as any).meta).not.toHaveProperty("skippedPreambleRows");
   });
 });

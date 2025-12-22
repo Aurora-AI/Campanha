@@ -258,8 +258,15 @@ describe('API Routes', () => {
 
       const { publishMonthHandler } = await loadHandlers();
 
+      const csvText = [
+        buildCsvWithDates({ entry, finalized }),
+        'Legenda do campo status:',
+        'Aprovado',
+        'Cadastro aprovado',
+      ].join('\n');
+
       const form = new FormData();
-      form.append('file', new File([buildCsvWithDates({ entry, finalized })], 'sample.csv', { type: 'text/csv' }));
+      form.append('file', new File([csvText], 'sample.csv', { type: 'text/csv' }));
       form.append('year', String(prev.year));
       form.append('month', String(prev.month));
       form.append('overwrite', '1');

@@ -50,7 +50,7 @@ describe("metrics/normalize (cards-only)", () => {
 
     const normalized = normalizeRows(header, rows);
     expect(normalized.length).toBe(2);
-    expect(normalized[0]?.store).toBe("LOJA 16 Cerro Azul - Centro");
+    expect(normalized[0]?.store).toBe("LOJA 16 CENTRO");
     expect(normalized[0]?.cnpj).toBe("07.316.252/0011-45");
     expect(normalized[0]?.proposalId).toBe("1001");
     expect(normalized[0]?.isApproved).toBe(true);
@@ -79,7 +79,7 @@ describe("metrics/normalize (cards-only)", () => {
 
     const normalized = normalizeRows(header, rows);
     expect(normalized.length).toBe(4);
-    expect(new Set(normalized.map((r) => r.store))).toEqual(new Set(["LOJA 16 Cerro Azul - Centro"]));
+    expect(new Set(normalized.map((r) => r.store))).toEqual(new Set(["LOJA 16 CENTRO"]));
     expect(new Set(normalized.map((r) => r.cnpj))).toEqual(new Set(["07.316.252/0011-45"]));
     expect(new Set(normalized.map((r) => r.date))).toEqual(new Set(["2025-12-12"]));
   });

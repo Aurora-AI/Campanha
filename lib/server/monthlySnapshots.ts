@@ -23,6 +23,9 @@ export type MonthlyAudit = {
     key: string;
     strategy: 'keyword_match' | 'statistical_fallback' | 'default';
   };
+  totalParsedRows?: number;
+  dataRows?: number;
+  droppedNonDataRows?: number;
   totalRows: number;
   invalidCadastroDateRows: number;
   spillover: {

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { normalizeCnpjDigits, resolveStoreNameFromCnpj, STORE_BY_CNPJ_DIGITS } from '@/lib/campaign/storeCatalog';
 
 export type CampaignConfig = {
   campaignId: string;
@@ -11,7 +12,7 @@ export type CampaignConfig = {
   weekStartsOn: 'monday' | 'sunday';
   useFinalizedDateForApprovals: boolean;
   weeklyTargetPerStoreByGroup: Record<string, number>;
-  storeByCnpjDigits: Record<string, string>;
+  storeByCnpjDigits?: Record<string, string>;
   groupByStorePrefix: Record<string, string>;
 };
 
@@ -22,18 +23,28 @@ export function getCampaignConfig(): CampaignConfig {
 
   const p = path.join(process.cwd(), 'config', 'campaign.config.json');
   const raw = fs.readFileSync(p, 'utf-8');
-  cached = JSON.parse(raw) as CampaignConfig;
+  const parsed = JSON.parse(raw) as CampaignConfig;
+  cached = {
+    ...parsed,
+    storeByCnpjDigits: {
+      ...(parsed.storeByCnpjDigits ?? {}),
+      ...STORE_BY_CNPJ_DIGITS,
+    },
+  };
 
   return cached;
 }
 
 export function cnpjDigits(cnpj: string): string {
-  return (cnpj || '').replace(/\D/g, '');
+  return normalizeCnpjDigits(cnpj);
 }
 
 export function resolveStoreName(cnpj: string, cfg: CampaignConfig): string {
+  const resolved = resolveStoreNameFromCnpj(cnpj);
+  if (resolved) return resolved;
   const digits = cnpjDigits(cnpj);
-  return cfg.storeByCnpjDigits[digits] ?? `LOJA DESCONHECIDA (${digits || 'SEM CNPJ'})`;
+  const mapped = cfg.storeByCnpjDigits?.[digits];
+  return mapped ?? `LOJA DESCONHECIDA (${digits || 'SEM CNPJ'})`;
 }
 
 export function resolveGroup(storeName: string, cfg: CampaignConfig): string {
