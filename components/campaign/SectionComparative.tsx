@@ -13,47 +13,38 @@ import {
 } from 'recharts';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 import type { SandboxData } from '@/lib/campaign/mock';
+import { fmtPct, fmtPp } from '@/lib/ui/formatNumbers';
 
 type ComparativePoint = {
   dateISO: string;
   day: string;
   currentValue: number;
-  baselineValue: number;
+  baselineValue: number | null;
 };
 
-function toPoints(series: Array<{ dateISO: string; currentValue: number; baselineValue: number }>): ComparativePoint[] {
+function toPoints(series: Array<{ dateISO: string; currentValue: number; baselineValue: number | null }>): ComparativePoint[] {
   return series.map((p) => {
     const dt = DateTime.fromISO(p.dateISO);
     return { ...p, day: dt.isValid ? dt.toFormat('dd') : p.dateISO };
   });
 }
 
-function fmtPct(v: number | undefined): string {
-  if (v == null || !Number.isFinite(v)) return '—';
-  return `${Math.round(v * 1000) / 10}%`;
-}
-
-function fmtPp(v: number | undefined): string {
-  if (v == null || !Number.isFinite(v)) return '—';
-  const rounded = Math.round(v * 10) / 10;
-  const sign = rounded > 0 ? '+' : '';
-  return `${sign}${rounded}pp`;
-}
-
 function CompactTooltip({
   active,
   payload,
   label,
+  showBaseline,
 }: {
   active?: boolean;
-  payload?: Array<{ value?: number; name?: string }>;
-  label?: string;
+  payload?: ReadonlyArray<{ value?: number; name?: string }>;
+  label?: string | number;
+  showBaseline: boolean;
 }) {
   if (!active || !payload || payload.length === 0) return null;
   const current = payload.find((p) => p.name === 'Atual')?.value ?? 0;
-  const baseline = payload.find((p) => p.name === 'Mês anterior')?.value ?? 0;
-  const delta = (current ?? 0) - (baseline ?? 0);
-  const sign = delta > 0 ? '+' : '';
+  const baseline = payload.find((p) => p.name === 'Mês anterior')?.value;
+  const delta = showBaseline && baseline != null ? current - baseline : null;
+  const sign = delta != null && delta > 0 ? '+' : '';
 
   return (
     <div className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs shadow-sm">
@@ -62,17 +53,21 @@ function CompactTooltip({
         <span className="text-black/60">Atual</span>
         <span className="font-semibold tabular-nums text-black">{current}</span>
       </div>
-      <div className="mt-1 flex items-center justify-between gap-6">
-        <span className="text-black/60">Mês anterior</span>
-        <span className="font-semibold tabular-nums text-black">{baseline}</span>
-      </div>
-      <div className="mt-1 flex items-center justify-between gap-6">
-        <span className="text-black/60">Δ</span>
-        <span className="font-semibold tabular-nums text-black">
-          {sign}
-          {delta}
-        </span>
-      </div>
+      {showBaseline && baseline != null ? (
+        <>
+          <div className="mt-1 flex items-center justify-between gap-6">
+            <span className="text-black/60">Mês anterior</span>
+            <span className="font-semibold tabular-nums text-black">{baseline}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-6">
+            <span className="text-black/60">Δ</span>
+            <span className="font-semibold tabular-nums text-black">
+              {sign}
+              {delta}
+            </span>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -104,7 +99,7 @@ function ComparativeChart({
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="day" tickLine={false} axisLine={false} interval={denseInterval} />
               <YAxis tickLine={false} axisLine={false} width={32} />
-              <Tooltip content={<CompactTooltip />} cursor={{ fill: 'transparent' }} />
+              <Tooltip content={(props) => <CompactTooltip {...props} showBaseline={showBaseline} />} cursor={{ fill: 'transparent' }} />
               <Line type="monotone" dataKey="currentValue" name="Atual" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
               {showBaseline ? (
                 <Line
@@ -132,7 +127,9 @@ export default function SectionComparative({
   data: SandboxData['trendComparative'];
   coverage: SandboxData['dataCoverage'];
 }) {
-  const showBaseline = !!coverage.previousMonthLoaded;
+  const showBaseline = !!coverage.baselineMonthLoaded || !!coverage.previousMonthLoaded;
+  const liveMonth = coverage.liveMonth ?? { year: coverage.currentMonthLoaded.year, month: coverage.currentMonthLoaded.month, source: 'publish-csv' as const };
+  const baselineMonth = coverage.baselineMonthLoaded ?? coverage.previousMonthLoaded;
 
   const proposalPoints = React.useMemo(() => toPoints(data.metrics.proposals), [data.metrics.proposals]);
   const approvalPoints = React.useMemo(() => toPoints(data.metrics.approvals), [data.metrics.approvals]);
@@ -194,7 +191,7 @@ export default function SectionComparative({
 
         <details className="mt-10 rounded-2xl border border-black/10 bg-stone-50 p-6">
           <summary className="cursor-pointer text-xs uppercase tracking-widest text-black/55">
-            Auditoria — meta em uso e cobertura de dados
+            Auditoria — objetivos em uso e cobertura de dados
           </summary>
           <div className="mt-4 grid gap-6 md:grid-cols-2">
             <div className="rounded-xl border border-black/10 bg-white p-5">
@@ -203,14 +200,14 @@ export default function SectionComparative({
                 <div>
                   Mês atual carregado:{' '}
                   <span className="font-mono text-[11px] text-black">
-                    {coverage.currentMonthLoaded.year}-{String(coverage.currentMonthLoaded.month).padStart(2, '0')}
+                    {liveMonth.year}-{String(liveMonth.month).padStart(2, '0')}
                   </span>
                 </div>
                 <div>
                   Mês anterior:{' '}
                   <span className="font-mono text-[11px] text-black">
-                    {coverage.previousMonthLoaded
-                      ? `${coverage.previousMonthLoaded.year}-${String(coverage.previousMonthLoaded.month).padStart(2, '0')}`
+                    {baselineMonth
+                      ? `${baselineMonth.year}-${String(baselineMonth.month).padStart(2, '0')}`
                       : '—'}
                   </span>
                 </div>
@@ -228,7 +225,10 @@ export default function SectionComparative({
                   Atual: <span className="font-mono text-[11px] text-black">{data.current.year}-{String(data.current.month).padStart(2, '0')}</span>
                 </div>
                 <div>
-                  Baseline: <span className="font-mono text-[11px] text-black">{data.baseline.year}-{String(data.baseline.month).padStart(2, '0')}</span>
+                  Baseline:{' '}
+                  <span className="font-mono text-[11px] text-black">
+                    {showBaseline ? `${data.baseline.year}-${String(data.baseline.month).padStart(2, '0')}` : '—'}
+                  </span>
                 </div>
                 <div className="pt-2 font-mono text-[11px] text-black/55">mode: {data.mode}</div>
               </div>
@@ -239,4 +239,3 @@ export default function SectionComparative({
     </section>
   );
 }
-

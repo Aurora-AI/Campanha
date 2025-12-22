@@ -51,7 +51,11 @@ export default function Hero({ data }: HeroProps) {
       curR: 0,
     };
 
-    const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+    const clamp = (n: number, min: number, max: number) => {
+      if (n < min) return min;
+      if (n > max) return max;
+      return n;
+    };
     const lerp = (from: number, to: number) => from + (to - from) * easing;
 
     const apply = () => {

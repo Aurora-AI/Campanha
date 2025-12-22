@@ -82,7 +82,7 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
       ...g,
       achievedLabel: weekly ? String(weekly.achieved) : undefined,
       targetLabel: weekly ? String(weekly.target) : undefined,
-      attainmentLabel: weekly ? `${Math.round(weekly.attainmentPct * 100)}%` : undefined,
+      attainmentPct: weekly?.attainmentPct,
       statusEmoji: weekly?.status,
     };
   });
@@ -240,7 +240,7 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
                         <div className="mt-1 font-mono text-[11px] text-stone-500">{s.source}</div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Meta mensal</div>
+                        <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Objetivo mensal</div>
                         <div className="mt-1 font-serif text-lg text-stone-900 tabular-nums">
                           {s.monthlyTarget ?? '—'}
                         </div>

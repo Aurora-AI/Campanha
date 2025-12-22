@@ -8,7 +8,8 @@ import { parseCalceleveCsv } from '@/lib/analytics/csv/parseCalceleveCsv';
 import { normalizeProposals } from '@/lib/analytics/normalize/normalizeProposals';
 import { computeSnapshot } from '@/lib/analytics/compute/computeSnapshot';
 import { getCampaignConfig } from '@/lib/campaign/config';
-import { publishMonthlySnapshot } from '@/lib/server/monthlySnapshots';
+import { loadMonthlyIndex, publishMonthlySnapshot } from '@/lib/server/monthlySnapshots';
+import { getFormDataFileName, readFormDataFileText } from '@/lib/server/readUploadBlob';
 
 export const runtime = 'nodejs';
 
@@ -20,47 +21,15 @@ function badRequest(message: string) {
   return NextResponse.json({ error: 'INVALID_REQUEST', message }, { status: 400 });
 }
 
-type FileLike = {
-  text?: () => Promise<string>;
-  arrayBuffer?: () => Promise<ArrayBuffer>;
-  name?: string;
-};
-
-function isFileLike(value: unknown): value is FileLike | Blob {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    (typeof (value as FileLike).text === 'function' ||
-      typeof (value as FileLike).arrayBuffer === 'function' ||
-      (typeof Blob !== 'undefined' && value instanceof Blob))
-  );
-}
-
-async function readFileText(file: FileLike | Blob): Promise<string> {
-  const textFn = (file as FileLike).text;
-  if (typeof textFn === 'function') return textFn();
-
-  const arrayBufferFn = (file as FileLike).arrayBuffer;
-  if (typeof arrayBufferFn === 'function') {
-    const buffer = await arrayBufferFn();
-    return new TextDecoder().decode(buffer);
-  }
-
-  if (typeof FileReader !== 'undefined' && typeof Blob !== 'undefined' && file instanceof Blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
-      reader.readAsText(file);
-    });
-  }
-
-  return '';
-}
-
 function parseIntSafe(input: unknown): number | null {
   const n = typeof input === 'number' ? input : Number(String(input ?? '').trim());
-  return Number.isFinite(n) ? Math.trunc(n) : null;
+  if (!Number.isFinite(n)) return null;
+  return parseInt(String(n), 10);
+}
+
+function truthyFlag(input: unknown): boolean {
+  const v = String(input ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
 }
 
 export async function POST(req: Request) {
@@ -87,23 +56,55 @@ export async function POST(req: Request) {
     const file = form.get('file');
     const yearRaw = form.get('year');
     const monthRaw = form.get('month');
+    const overwrite = truthyFlag(form.get('overwrite'));
 
     const year = parseIntSafe(yearRaw);
     const month = parseIntSafe(monthRaw);
 
     if (!year || year < 2000 || year > 2100) return badRequest('YEAR_INVALID');
     if (!month || month < 1 || month > 12) return badRequest('MONTH_INVALID');
-    if (!isFileLike(file)) return badRequest('MISSING_FILE');
 
-    const text = await readFileText(file);
+    const cfg = getCampaignConfig();
+    const tz = cfg.timezone;
+    const nowTz = DateTime.now().setZone(tz);
+    const currentYear = nowTz.year;
+    const currentMonth = nowTz.month;
+
+    if (year === currentYear && month === currentMonth) {
+      return NextResponse.json(
+        { error: 'CURRENT_MONTH_IS_LIVE', message: 'Mês corrente vem do Publicar CSV (/api/publish-csv).' },
+        { status: 400 }
+      );
+    }
+    if (year > currentYear || (year === currentYear && month > currentMonth)) {
+      return NextResponse.json({ error: 'MONTH_IN_FUTURE' }, { status: 400 });
+    }
+
+    const index = await loadMonthlyIndex();
+    let exists = false;
+    if (index?.months) {
+      for (const m of index.months) {
+        if (m.year === year && m.month === month) {
+          exists = true;
+          break;
+        }
+      }
+    }
+    if (exists && !overwrite) {
+      return NextResponse.json(
+        { error: 'MONTH_ALREADY_EXISTS', message: 'Mês já existe no histórico. Marque overwrite para substituir.' },
+        { status: 409 }
+      );
+    }
+
+    const text = await readFormDataFileText(file);
+    if (text === null) return badRequest('MISSING_FILE');
+
     const parsed = await parseCalceleveCsv(text);
     if (!parsed.ok) return badRequest(parsed.error);
 
     const proposals = normalizeProposals(parsed.value.rows);
     if (proposals.length === 0) return badRequest('EMPTY_DATASET');
-
-    const cfg = getCampaignConfig();
-    const tz = cfg.timezone;
 
     const isInMonth = (iso: string): boolean => {
       const dt = DateTime.fromISO(iso, { zone: tz }).startOf('day');
@@ -119,15 +120,15 @@ export async function POST(req: Request) {
     if (days.size > 31) return badRequest('TOO_MANY_DAYS');
 
     const snapshot = computeSnapshot(proposals);
-    const sourceFileName = typeof (file as FileLike).name === 'string' ? String((file as FileLike).name) : 'upload.csv';
+    const sourceFileName = getFormDataFileName(file, 'upload.csv');
 
-    const index = await publishMonthlySnapshot({ year, month, sourceFileName, snapshot });
+    const next = await publishMonthlySnapshot({ year, month, sourceFileName, snapshot, allowOverwrite: overwrite });
     return NextResponse.json(
       {
         ok: true,
-        current: index.current,
-        months: index.months.length,
-        updatedAtISO: index.updatedAtISO,
+        current: next.current,
+        months: next.months.length,
+        updatedAtISO: next.updatedAtISO,
       },
       { status: 200 }
     );
@@ -138,4 +139,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

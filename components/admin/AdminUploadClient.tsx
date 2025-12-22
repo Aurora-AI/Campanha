@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { DateTime } from "luxon";
 
 type PublishResult = {
   ok?: boolean;
@@ -12,18 +13,39 @@ type PublishResult = {
   updatedAtISO?: string;
 };
 
+type MonthlyIndex = {
+  schemaVersion: "campaign-monthly-index/v1";
+  updatedAtISO: string;
+  months: Array<{ year: number; month: number; source: string; uploadedAtISO: string; pathname?: string }>;
+  current?: { year: number; month: number };
+};
+
+function isMonthlyIndex(value: unknown): value is MonthlyIndex {
+  if (!value || typeof value !== "object") return false;
+  const rec = value as Record<string, unknown>;
+  if (rec.schemaVersion !== "campaign-monthly-index/v1") return false;
+  if (!Array.isArray(rec.months)) return false;
+  return true;
+}
+
 export default function AdminUploadClient() {
   const [publishFile, setPublishFile] = React.useState<File | null>(null);
   const [monthlyFile, setMonthlyFile] = React.useState<File | null>(null);
   const [year, setYear] = React.useState<number>(new Date().getFullYear());
   const [month, setMonth] = React.useState<number>(new Date().getMonth() + 1);
+  const [overwriteMonthly, setOverwriteMonthly] = React.useState(false);
 
   const [loadingPublish, setLoadingPublish] = React.useState(false);
   const [loadingMonthly, setLoadingMonthly] = React.useState(false);
   const [publishResult, setPublishResult] = React.useState<PublishResult | null>(null);
   const [monthlyResult, setMonthlyResult] = React.useState<PublishResult | null>(null);
 
-  const [monthlyIndex, setMonthlyIndex] = React.useState<unknown>(null);
+  const [monthlyIndex, setMonthlyIndex] = React.useState<MonthlyIndex | null>(null);
+
+  const nowSP = DateTime.now().setZone("America/Sao_Paulo");
+  const isCurrentMonthSelected = year === nowSP.year && month === nowSP.month;
+  const monthExists = !!monthlyIndex?.months?.some((m) => m.year === year && m.month === month);
+  const canPublishMonth = !!monthlyFile && !loadingMonthly && !isCurrentMonthSelected && (!monthExists || overwriteMonthly);
 
   const reloadMonthlyIndex = React.useCallback(async () => {
     try {
@@ -34,7 +56,7 @@ export default function AdminUploadClient() {
       }
       if (!res.ok) return;
       const json = await res.json();
-      setMonthlyIndex(json);
+      setMonthlyIndex(isMonthlyIndex(json) ? json : null);
     } catch {
       setMonthlyIndex(null);
     }
@@ -74,6 +96,20 @@ export default function AdminUploadClient() {
 
   async function publishMonth() {
     if (!monthlyFile) return;
+    if (isCurrentMonthSelected) {
+      setMonthlyResult({
+        ok: false,
+        error: "Mês corrente vem do “Publicar CSV”. Aqui só registramos meses encerrados (histórico).",
+      });
+      return;
+    }
+    if (monthExists && !overwriteMonthly) {
+      setMonthlyResult({
+        ok: false,
+        error: "Esse mês já existe no histórico. Marque overwrite para substituir.",
+      });
+      return;
+    }
 
     setLoadingMonthly(true);
     setMonthlyResult(null);
@@ -83,6 +119,7 @@ export default function AdminUploadClient() {
       fd.append("file", monthlyFile);
       fd.append("year", String(year));
       fd.append("month", String(month));
+      fd.append("overwrite", overwriteMonthly ? "1" : "0");
 
       const res = await fetch("/api/publish-month", { method: "POST", body: fd });
       const json = (await res.json().catch(() => ({}))) as PublishResult;
@@ -159,10 +196,14 @@ export default function AdminUploadClient() {
 
       <div className="border border-neutral-200 rounded-2xl p-4 space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-sm font-medium">Ingestão mensal (histórico)</h2>
+          <h2 className="text-sm font-medium">Ingestão mensal (histórico — meses encerrados)</h2>
           <button className="text-xs underline" onClick={reloadMonthlyIndex} type="button">
             Recarregar índice
           </button>
+        </div>
+
+        <div className="text-xs text-neutral-600">
+          O mês corrente vem do <span className="font-medium">Publicar CSV</span>. Use aqui apenas para registrar meses anteriores (data lake).
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -197,12 +238,33 @@ export default function AdminUploadClient() {
           </div>
         </div>
 
+        <label className="flex items-center gap-2 text-xs text-neutral-600">
+          <input
+            type="checkbox"
+            checked={overwriteMonthly}
+            onChange={(e) => setOverwriteMonthly(e.target.checked)}
+          />
+          Overwrite (se esse mês já estiver no histórico)
+        </label>
+
+        {isCurrentMonthSelected ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            Mês corrente bloqueado: publique via “Publicar CSV”.
+          </div>
+        ) : null}
+
+        {!isCurrentMonthSelected && monthExists && !overwriteMonthly ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            Esse mês já existe no histórico. Marque overwrite para substituir.
+          </div>
+        ) : null}
+
         <button
           className="rounded-xl bg-black text-white px-4 py-2 disabled:opacity-60"
-          disabled={!monthlyFile || loadingMonthly}
+          disabled={!canPublishMonth}
           onClick={publishMonth}
         >
-          {loadingMonthly ? "Publicando mês..." : "Publicar mês"}
+          {loadingMonthly ? "Registrando mês..." : "Registrar mês histórico"}
         </button>
 
         {monthlyResult ? (

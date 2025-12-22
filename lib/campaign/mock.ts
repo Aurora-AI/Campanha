@@ -69,18 +69,20 @@ export interface SandboxData {
     current: { year: number; month: number; fromISO: string; toISO: string };
     baseline: { year: number; month: number; fromISO: string; toISO: string };
     metrics: {
-      proposals: Array<{ dateISO: string; currentValue: number; baselineValue: number }>;
-      approvals: Array<{ dateISO: string; currentValue: number; baselineValue: number }>;
+      proposals: Array<{ dateISO: string; currentValue: number; baselineValue: number | null }>;
+      approvals: Array<{ dateISO: string; currentValue: number; baselineValue: number | null }>;
     };
     summary?: {
-      proposals?: { currentTotal: number; baselineTotal: number; deltaPct?: number };
-      approvals?: { currentTotal: number; baselineTotal: number; deltaPct?: number };
-      approvalRate?: { currentPct: number; baselinePct: number; deltaPp?: number };
+      proposals?: { currentTotal: number; baselineTotal: number | null; deltaPct?: number };
+      approvals?: { currentTotal: number; baselineTotal: number | null; deltaPct?: number };
+      approvalRate?: { currentPct: number; baselinePct: number | null; deltaPp?: number };
     };
   };
   dataCoverage: {
+    liveMonth?: { year: number; month: number; source: 'publish-csv'; publishedAtISO?: string };
     availableMonths: Array<{ year: number; month: number; source: string; uploadedAtISO: string }>;
     currentMonthLoaded: { year: number; month: number };
+    baselineMonthLoaded?: { year: number; month: number; source: 'monthlySnapshots'; uploadedAtISO?: string };
     previousMonthLoaded?: { year: number; month: number };
   };
   reengagement: {
@@ -198,11 +200,13 @@ export const MOCK_DB: SandboxData = {
     },
   },
   dataCoverage: {
+    liveMonth: { year: 2025, month: 12, source: 'publish-csv', publishedAtISO: '2025-12-12T12:00:00.000Z' },
     availableMonths: [
       { year: 2025, month: 11, source: 'admin', uploadedAtISO: '2025-12-01T12:00:00.000Z' },
       { year: 2025, month: 12, source: 'admin', uploadedAtISO: '2025-12-12T12:00:00.000Z' },
     ],
     currentMonthLoaded: { year: 2025, month: 12 },
+    baselineMonthLoaded: { year: 2025, month: 11, source: 'monthlySnapshots', uploadedAtISO: '2025-12-01T12:00:00.000Z' },
     previousMonthLoaded: { year: 2025, month: 11 },
   },
   reengagement: {

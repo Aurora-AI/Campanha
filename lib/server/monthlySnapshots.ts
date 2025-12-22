@@ -88,6 +88,7 @@ export async function publishMonthlySnapshot(args: {
   month: number;
   sourceFileName: string;
   snapshot: Snapshot;
+  allowOverwrite?: boolean;
 }): Promise<MonthlyIndex> {
   const token = getBlobToken();
   if (!token) throw new Error('Missing BLOB_READ_WRITE_TOKEN');
@@ -111,7 +112,7 @@ export async function publishMonthlySnapshot(args: {
     token,
     contentType: 'application/json',
     addRandomSuffix: false,
-    allowOverwrite: true,
+    allowOverwrite: args.allowOverwrite ?? false,
   });
 
   const existing = (await loadMonthlyIndex()) ?? {
@@ -149,4 +150,3 @@ export async function publishMonthlySnapshot(args: {
 
   return next;
 }
-

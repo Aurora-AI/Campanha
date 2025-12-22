@@ -294,13 +294,14 @@ function countMonthDaily(options: {
 function buildTrendComparative(options: {
   currentProposals: ProposalFact[];
   baselineProposals: ProposalFact[];
+  baselineLoaded: boolean;
   tz: string;
   useFinalized: boolean;
   year: number;
   month: number;
   now: DateTime;
 }): SandboxData['trendComparative'] {
-  const { currentProposals, baselineProposals, tz, useFinalized, year, month, now } = options;
+  const { currentProposals, baselineProposals, baselineLoaded, tz, useFinalized, year, month, now } = options;
   const baselineYm = prevYearMonth(year, month);
   const currentWindow = monthWindow(tz, year, month);
   const baselineWindow = monthWindow(tz, baselineYm.year, baselineYm.month);
@@ -309,13 +310,15 @@ function buildTrendComparative(options: {
   const currentTo = (isCurrentMonth ? DateTime.min(now.endOf('day'), currentWindow.end) : currentWindow.end).startOf('day');
 
   const currentCounts = countMonthDaily({ proposals: currentProposals, tz, useFinalized, year, month });
-  const baselineCounts = countMonthDaily({
-    proposals: baselineProposals,
-    tz,
-    useFinalized,
-    year: baselineYm.year,
-    month: baselineYm.month,
-  });
+  const baselineCounts = baselineLoaded
+    ? countMonthDaily({
+        proposals: baselineProposals,
+        tz,
+        useFinalized,
+        year: baselineYm.year,
+        month: baselineYm.month,
+      })
+    : { proposalsByDay: new Map<string, number>(), approvalsByDay: new Map<string, number>() };
 
   const baselineMap = new Map<string, string>();
   const lastByWeekday = new Map<number, string>();
@@ -350,16 +353,18 @@ function buildTrendComparative(options: {
 
     const cProposals = dateISO ? currentCounts.proposalsByDay.get(dateISO) ?? 0 : 0;
     const cApprovals = dateISO ? currentCounts.approvalsByDay.get(dateISO) ?? 0 : 0;
-    const bProposals = bISO ? baselineCounts.proposalsByDay.get(bISO) ?? 0 : 0;
-    const bApprovals = bISO ? baselineCounts.approvalsByDay.get(bISO) ?? 0 : 0;
+    const bProposalsNum = baselineLoaded && bISO ? baselineCounts.proposalsByDay.get(bISO) ?? 0 : 0;
+    const bApprovalsNum = baselineLoaded && bISO ? baselineCounts.approvalsByDay.get(bISO) ?? 0 : 0;
+    const bProposals = baselineLoaded ? bProposalsNum : null;
+    const bApprovals = baselineLoaded ? bApprovalsNum : null;
 
     proposals.push({ dateISO, currentValue: cProposals, baselineValue: bProposals });
     approvals.push({ dateISO, currentValue: cApprovals, baselineValue: bApprovals });
 
     cPropTotal += cProposals;
-    bPropTotal += bProposals;
+    if (baselineLoaded) bPropTotal += bProposalsNum;
     cApprTotal += cApprovals;
-    bApprTotal += bApprovals;
+    if (baselineLoaded) bApprTotal += bApprovalsNum;
 
     dayCursor = dayCursor.plus({ days: 1 });
   }
@@ -367,20 +372,20 @@ function buildTrendComparative(options: {
   const summary: SandboxData['trendComparative']['summary'] = {};
   summary.proposals = {
     currentTotal: cPropTotal,
-    baselineTotal: bPropTotal,
-    ...(bPropTotal > 0 ? { deltaPct: (cPropTotal - bPropTotal) / bPropTotal } : {}),
+    baselineTotal: baselineLoaded ? bPropTotal : null,
+    ...(baselineLoaded && bPropTotal > 0 ? { deltaPct: (cPropTotal - bPropTotal) / bPropTotal } : {}),
   };
   summary.approvals = {
     currentTotal: cApprTotal,
-    baselineTotal: bApprTotal,
-    ...(bApprTotal > 0 ? { deltaPct: (cApprTotal - bApprTotal) / bApprTotal } : {}),
+    baselineTotal: baselineLoaded ? bApprTotal : null,
+    ...(baselineLoaded && bApprTotal > 0 ? { deltaPct: (cApprTotal - bApprTotal) / bApprTotal } : {}),
   };
   const cRate = cPropTotal > 0 ? cApprTotal / cPropTotal : 0;
-  const bRate = bPropTotal > 0 ? bApprTotal / bPropTotal : 0;
+  const bRate = baselineLoaded && bPropTotal > 0 ? bApprTotal / bPropTotal : 0;
   summary.approvalRate = {
     currentPct: cRate,
-    baselinePct: bRate,
-    deltaPp: (cRate - bRate) * 100,
+    baselinePct: baselineLoaded ? bRate : null,
+    ...(baselineLoaded ? { deltaPp: (cRate - bRate) * 100 } : {}),
   };
 
   return {
@@ -479,18 +484,25 @@ export function adaptSnapshotToCampaign(snapshot: unknown, options: AdaptCampaig
   const editorialSummary = asRecord(root?.editorialSummary);
 
   const tzNow = DateTime.now().setZone(cfg.timezone);
+  const baselineLoaded = !!options.baselineSnapshot;
   const baselineRoot = asRecord(options.baselineSnapshot);
   const baselineProposals = Array.isArray(baselineRoot?.proposals) ? (baselineRoot?.proposals as ProposalFact[]) : [];
 
-  const inferredCurrentYm = options.dataCoverage?.currentMonthLoaded ?? { year: tzNow.year, month: tzNow.month };
+  const inferredCurrentYm = options.dataCoverage?.liveMonth
+    ? { year: options.dataCoverage.liveMonth.year, month: options.dataCoverage.liveMonth.month }
+    : options.dataCoverage?.currentMonthLoaded ?? { year: tzNow.year, month: tzNow.month };
   const inferredPrevYm = prevYearMonth(inferredCurrentYm.year, inferredCurrentYm.month);
 
   const dataCoverage: SandboxData['dataCoverage'] =
     options.dataCoverage ??
     ({
+      liveMonth: { year: inferredCurrentYm.year, month: inferredCurrentYm.month, source: 'publish-csv' },
       availableMonths: [],
       currentMonthLoaded: inferredCurrentYm,
-      ...(options.baselineSnapshot ? { previousMonthLoaded: inferredPrevYm } : {}),
+      ...(baselineLoaded
+        ? { baselineMonthLoaded: { year: inferredPrevYm.year, month: inferredPrevYm.month, source: 'monthlySnapshots' } }
+        : {}),
+      ...(baselineLoaded ? { previousMonthLoaded: inferredPrevYm } : {}),
     } satisfies SandboxData['dataCoverage']);
 
   if (!root || !editorialSummary) {
@@ -528,6 +540,7 @@ export function adaptSnapshotToCampaign(snapshot: unknown, options: AdaptCampaig
     const trendComparative = buildTrendComparative({
       currentProposals: [],
       baselineProposals,
+      baselineLoaded,
       tz: cfg.timezone,
       useFinalized: cfg.useFinalizedDateForApprovals,
       year: dataCoverage.currentMonthLoaded.year,
@@ -588,14 +601,21 @@ export function adaptSnapshotToCampaign(snapshot: unknown, options: AdaptCampaig
   const storeMetrics = Array.isArray(root.storeMetrics) ? (root.storeMetrics as StoreMetrics[]) : [];
   const proposals = Array.isArray(root.proposals) ? (root.proposals as ProposalFact[]) : [];
 
-  const currentYm = options.dataCoverage?.currentMonthLoaded ?? inferYearMonthFromProposals(proposals, cfg.timezone, tzNow);
+  const currentYm = options.dataCoverage?.liveMonth
+    ? { year: options.dataCoverage.liveMonth.year, month: options.dataCoverage.liveMonth.month }
+    : options.dataCoverage?.currentMonthLoaded ?? inferYearMonthFromProposals(proposals, cfg.timezone, tzNow);
   const prevYm = prevYearMonth(currentYm.year, currentYm.month);
-  const baselineEnabled = !!options.dataCoverage?.previousMonthLoaded || !!options.baselineSnapshot;
+  const baselineEnabled =
+    !!options.dataCoverage?.baselineMonthLoaded || !!options.dataCoverage?.previousMonthLoaded || baselineLoaded;
   const resolvedCoverage: SandboxData['dataCoverage'] =
     options.dataCoverage ??
     ({
+      liveMonth: { year: currentYm.year, month: currentYm.month, source: 'publish-csv' },
       availableMonths: [],
       currentMonthLoaded: currentYm,
+      ...(baselineLoaded
+        ? { baselineMonthLoaded: { year: prevYm.year, month: prevYm.month, source: 'monthlySnapshots' } }
+        : {}),
       ...(baselineEnabled ? { previousMonthLoaded: prevYm } : {}),
     } satisfies SandboxData['dataCoverage']);
 
@@ -694,6 +714,7 @@ export function adaptSnapshotToCampaign(snapshot: unknown, options: AdaptCampaig
   const trendComparative = buildTrendComparative({
     currentProposals: proposals,
     baselineProposals,
+    baselineLoaded,
     tz: cfg.timezone,
     useFinalized: cfg.useFinalizedDateForApprovals,
     year: resolvedCoverage.currentMonthLoaded.year,

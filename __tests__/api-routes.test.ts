@@ -21,8 +21,9 @@ vi.mock('@vercel/blob', () => ({
 async function loadHandlers() {
   vi.resetModules();
   const publishCsvModule = await import('@/app/api/publish-csv/route');
+  const publishMonthModule = await import('@/app/api/publish-month/route');
   const latestModule = await import('@/app/api/latest/route');
-  return { publishCsvModule, latestHandler: latestModule.GET };
+  return { publishCsvModule, publishMonthHandler: publishMonthModule.POST, latestHandler: latestModule.GET };
 }
 
 function buildCsv(): string {
@@ -168,6 +169,84 @@ describe('API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data).toEqual(mockSnapshot);
+    });
+  });
+
+  describe('POST /api/publish-month', () => {
+    it('deve bloquear ingestão do mês corrente', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date('2025-12-15T15:00:00.000Z')); // 12:00 em São Paulo
+
+        const { publishMonthHandler } = await loadHandlers();
+
+        const form = new FormData();
+        form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
+        form.append('year', '2025');
+        form.append('month', '12');
+
+        const request = {
+          headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
+          formData: async () => form,
+        } as unknown as Request;
+
+        const response = await publishMonthHandler(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(data.error).toBe('CURRENT_MONTH_IS_LIVE');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('deve bloquear duplicidade de mês por padrão', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date('2025-12-15T15:00:00.000Z')); // 12:00 em São Paulo
+
+        const { publishMonthHandler } = await loadHandlers();
+
+        headMock.mockResolvedValueOnce({
+          url: 'https://example.com/campanha/monthly/index.json',
+        });
+
+        const fetchMock = vi.fn().mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            schemaVersion: 'campaign-monthly-index/v1',
+            updatedAtISO: '2025-12-10T00:00:00.000Z',
+            months: [
+              {
+                year: 2025,
+                month: 11,
+                source: 'sample.csv',
+                uploadedAtISO: '2025-12-01T00:00:00.000Z',
+                pathname: 'campanha/monthly/2025-11.json',
+              },
+            ],
+          }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const form = new FormData();
+        form.append('file', new File([buildCsv()], 'sample.csv', { type: 'text/csv' }));
+        form.append('year', '2025');
+        form.append('month', '11');
+
+        const request = {
+          headers: new Headers({ 'x-admin-token': 'test-secret-token' }),
+          formData: async () => form,
+        } as unknown as Request;
+
+        const response = await publishMonthHandler(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(409);
+        expect(data.error).toBe('MONTH_ALREADY_EXISTS');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

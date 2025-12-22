@@ -4,6 +4,7 @@ import { normalizeProposals } from '@/lib/analytics/normalize/normalizeProposals
 import { computeSnapshot } from '@/lib/analytics/compute/computeSnapshot';
 import { createBlobPublisher, getBlobToken, type MetricsPublisher } from '@/lib/publisher';
 import { verifyAdminCookie } from '@/lib/admin/auth';
+import { readFormDataFileText } from '@/lib/server/readUploadBlob';
 import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
@@ -16,42 +17,6 @@ type PublishHandlerOptions = {
   publisher?: MetricsPublisher;
   requireToken?: boolean;
 };
-
-type FileLike = {
-  text?: () => Promise<string>;
-  arrayBuffer?: () => Promise<ArrayBuffer>;
-  name?: string;
-};
-
-function isFileLike(value: unknown): value is FileLike | Blob {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    (typeof (value as FileLike).text === 'function' ||
-      typeof (value as FileLike).arrayBuffer === 'function' ||
-      (typeof Blob !== 'undefined' && value instanceof Blob))
-  );
-}
-
-async function readFileText(file: FileLike | Blob): Promise<string> {
-  const textFn = (file as FileLike).text;
-  if (typeof textFn === 'function') return textFn();
-
-  const arrayBufferFn = (file as FileLike).arrayBuffer;
-  if (typeof arrayBufferFn === 'function') {
-    const buffer = await arrayBufferFn();
-    return new TextDecoder().decode(buffer);
-  }
-  if (typeof FileReader !== 'undefined' && typeof Blob !== 'undefined' && file instanceof Blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
-      reader.readAsText(file);
-    });
-  }
-  return '';
-}
 
 function logRouteStatus(status: number, cause: string) {
   console.error(`POST /api/publish-csv ${status} ${cause}`);
@@ -89,8 +54,7 @@ export function createPublishCsvHandler(options: PublishHandlerOptions = {}) {
 
       const form = await req.formData();
       const file = form.get('file');
-
-      const text = typeof file === 'string' ? file : isFileLike(file) ? await readFileText(file) : null;
+      const text = await readFormDataFileText(file);
 
       if (text === null) {
         logRouteStatus(400, 'missing_file');
@@ -110,7 +74,8 @@ export function createPublishCsvHandler(options: PublishHandlerOptions = {}) {
 
       return NextResponse.json({ ok: true, proposals: proposals.length }, { status: 200 });
     } catch (error) {
-      logRouteStatus(500, error instanceof Error ? 'publisher_error' : 'unknown_error');
+      const message = error instanceof Error ? error.message : 'unknown_error';
+      logRouteStatus(500, message);
       return NextResponse.json(
         { error: 'PUBLISH_CSV_FAILED', message: error instanceof Error ? error.message : 'Erro interno' },
         { status: 500 }

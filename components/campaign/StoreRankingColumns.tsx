@@ -17,7 +17,10 @@ export default function StoreRankingColumns({
   columns: StoreRankingColumn[];
   emptyLabel?: string;
 }) {
-  const visibleColumns = columns.filter((col) => col.items.length > 0);
+  const visibleColumns: StoreRankingColumn[] = [];
+  for (const col of columns) {
+    if (col.items.length > 0) visibleColumns.push(col);
+  }
   const anyItems = visibleColumns.length > 0;
 
   return (

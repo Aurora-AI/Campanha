@@ -6,6 +6,7 @@ export type GroupRadialInput = {
   achievedLabel?: string;
   targetLabel?: string;
   attainmentLabel?: string;
+  attainmentPct?: number;
   status?: CampaignStatus;
   statusEmoji?: '🟢' | '🟡' | '🔴';
 };
@@ -104,7 +105,8 @@ export function buildGroupsPulseVM(args: {
       delay: i * 0.1,
       achievedLabel: g.achievedLabel,
       targetLabel: g.targetLabel,
-      attainmentLabel: g.attainmentLabel,
+      attainmentLabel:
+        g.attainmentLabel ?? (g.attainmentPct != null ? `${Math.round(g.attainmentPct * 100)}%` : undefined),
       statusEmoji: g.statusEmoji ?? statusToEmoji(g.status),
       thermometer: {
         size,
