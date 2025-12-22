@@ -7,7 +7,6 @@ import {
   Line,
   XAxis,
   YAxis,
-  Tooltip,
   CartesianGrid,
 } from 'recharts';
 import { ChartFrame } from '@/components/charts/ChartFrame';
@@ -54,13 +53,12 @@ export default function EvolutionChart({
             interval={denseInterval}
           />
           <YAxis tickLine={false} axisLine={false} width={28} />
-          <Tooltip cursor={{ fill: 'transparent' }} />
           <Line
             type="monotone"
             dataKey="value"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4 }}
+            activeDot={false}
           />
         </LineChart>
       </ResponsiveContainer>

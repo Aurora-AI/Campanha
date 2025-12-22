@@ -140,7 +140,8 @@ const buildDashboardData = (allRows: string[][]): DashboardData => {
     const weekId = getWeekId(dataEntradaRaw);
     const stage = getStage(dataEntradaRaw);
     const cnpj = (rowObj["CNPJ"] ?? "").trim();
-    const lojaNome = resolveStoreNameFromCnpj(cnpj) || `DESCONHECIDA (${cnpj})`;
+    const lojaNome = resolveStoreNameFromCnpj(cnpj);
+    if (!lojaNome) continue;
     const flags = normalizeSituation(rowObj["Situação"]);
 
     total++;

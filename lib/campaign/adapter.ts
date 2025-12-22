@@ -203,7 +203,8 @@ function buildStoresMonthly(options: {
     if (dt < start) continue;
     if (dt > to) continue;
 
-    const storeName = p.store || 'Loja';
+    const storeName = p.store;
+    if (!storeName) continue;
     const approved = p.approved ?? 0;
     totalsByStore.set(storeName, (totalsByStore.get(storeName) ?? 0) + approved);
     totalAchieved += approved;

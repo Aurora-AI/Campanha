@@ -7,7 +7,6 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -27,49 +26,6 @@ function toPoints(series: Array<{ dateISO: string; currentValue: number; baselin
     const dt = DateTime.fromISO(p.dateISO);
     return { ...p, day: dt.isValid ? dt.toFormat('dd') : p.dateISO };
   });
-}
-
-function CompactTooltip({
-  active,
-  payload,
-  label,
-  showBaseline,
-}: {
-  active?: boolean;
-  payload?: ReadonlyArray<{ value?: number; name?: string }>;
-  label?: string | number;
-  showBaseline: boolean;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const current = payload.find((p) => p.name === 'Atual')?.value ?? 0;
-  const baseline = payload.find((p) => p.name === 'Mês anterior')?.value;
-  const delta = showBaseline && baseline != null ? current - baseline : null;
-  const sign = delta != null && delta > 0 ? '+' : '';
-
-  return (
-    <div className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs shadow-sm">
-      <div className="font-mono text-[11px] text-black/60">{label}</div>
-      <div className="mt-1 flex items-center justify-between gap-6">
-        <span className="text-black/60">Atual</span>
-        <span className="font-semibold tabular-nums text-black">{current}</span>
-      </div>
-      {showBaseline && baseline != null ? (
-        <>
-          <div className="mt-1 flex items-center justify-between gap-6">
-            <span className="text-black/60">Mês anterior</span>
-            <span className="font-semibold tabular-nums text-black">{baseline}</span>
-          </div>
-          <div className="mt-1 flex items-center justify-between gap-6">
-            <span className="text-black/60">Δ</span>
-            <span className="font-semibold tabular-nums text-black">
-              {sign}
-              {delta}
-            </span>
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
 }
 
 function ComparativeChart({
@@ -99,8 +55,14 @@ function ComparativeChart({
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="day" tickLine={false} axisLine={false} interval={denseInterval} />
               <YAxis tickLine={false} axisLine={false} width={32} />
-              <Tooltip content={(props) => <CompactTooltip {...props} showBaseline={showBaseline} />} cursor={{ fill: 'transparent' }} />
-              <Line type="monotone" dataKey="currentValue" name="Atual" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+              <Line
+                type="monotone"
+                dataKey="currentValue"
+                name="Atual"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
               {showBaseline ? (
                 <Line
                   type="monotone"
@@ -110,6 +72,7 @@ function ComparativeChart({
                   dot={false}
                   strokeDasharray="4 4"
                   stroke="rgba(0,0,0,0.45)"
+                  isAnimationActive={false}
                 />
               ) : null}
             </LineChart>

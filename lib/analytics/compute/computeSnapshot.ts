@@ -86,6 +86,7 @@ export function computeSnapshot(proposals: ProposalFact[]): Snapshot {
   const byStore = new Map<string, ProposalFact[]>();
   for (const p of proposals) {
     const key = p.store;
+    if (!key) continue;
     byStore.set(key, [...(byStore.get(key) ?? []), p]);
   }
 

@@ -65,7 +65,7 @@ const normalizeCnpj = (value: string): string | undefined => {
 };
 
 const storeFromCnpj = (cnpj: string | undefined): string | undefined =>
-  cnpj ? resolveStoreNameFromCnpj(cnpj) ?? `CNPJ ${cnpj}` : undefined;
+  cnpj ? resolveStoreNameFromCnpj(cnpj) ?? undefined : undefined;
 
 const findColumnIndex = (headers: string[], patterns: string[]): number | undefined => {
   const normalized = headers.map(normalizeText);
@@ -242,8 +242,7 @@ export function normalizeRows(header: string[], rows: string[][]): NormalizedRow
     const cnpj = normalizeCnpj(String(row[cols.cnpj] ?? ""));
     if (!cnpj) continue;
 
-    const store = storeFromCnpj(cnpj) || "";
-    if (!store) continue;
+    const store = storeFromCnpj(cnpj) ?? "";
 
     const { status, pendingType } = normalizeStatus(String(row[cols.status] ?? ""));
     const cpfMasked = cols.cpf != null ? String(row[cols.cpf] ?? "").trim() || undefined : undefined;

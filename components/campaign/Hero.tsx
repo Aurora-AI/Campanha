@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useEffect, useRef } from 'react';
 import type { SandboxData } from '@/lib/campaign/mock';
@@ -24,10 +23,10 @@ export default function Hero({ data }: HeroProps) {
 
     const pointerFine = window.matchMedia('(pointer: fine)').matches;
 
-    const maxScrollOffset = 80;
-    const maxTranslate = 7;
-    const maxRotate = 1.1;
-    const easing = 0.09;
+    const maxScrollOffset = 60;
+    const maxTranslate = 4;
+    const maxRotate = 0.6;
+    const easing = 0.05;
 
     const state = {
       raf: 0 as number,
@@ -65,7 +64,7 @@ export default function Hero({ data }: HeroProps) {
     };
 
     const onScroll = () => {
-      state.scrollY = clamp(window.scrollY * 0.2, -maxScrollOffset, maxScrollOffset);
+      state.scrollY = clamp(window.scrollY * 0.15, -maxScrollOffset, maxScrollOffset);
       schedule();
     };
 
@@ -76,9 +75,9 @@ export default function Hero({ data }: HeroProps) {
       const y = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0.5;
       const nx = clamp(x * 2 - 1, -1, 1);
       const ny = clamp(y * 2 - 1, -1, 1);
-      state.targetX = nx * maxTranslate;
-      state.targetY = ny * maxTranslate;
-      state.targetR = nx * maxRotate;
+      state.targetX = nx * maxTranslate * 0.85;
+      state.targetY = ny * maxTranslate * 0.85;
+      state.targetR = nx * maxRotate * 0.9;
       schedule();
     };
 
@@ -130,7 +129,7 @@ export default function Hero({ data }: HeroProps) {
 
       {/* Main Content Layer - Editorial/static */}
       <div className="relative z-40 w-full max-w-5xl px-6 pt-24 text-center text-black pointer-events-none md:pt-32 mx-auto">
-        <h1 className="font-serif text-[12vw] leading-[0.85] tracking-[-0.03em] whitespace-nowrap">
+        <h1 className="font-serif text-[10vw] leading-[0.85] tracking-[-0.03em] whitespace-nowrap">
           {headline}
         </h1>
         <p className="font-sans text-[12px] md:text-[13px] mt-8 tracking-[0.22em] uppercase text-black/55 max-w-xl mx-auto truncate">
@@ -161,14 +160,11 @@ export default function Hero({ data }: HeroProps) {
 
       </div>
 
-      {/* Satellites (Draggable) */}
+      {/* Satellites (ambient) */}
       <div className="absolute inset-0 z-30 pointer-events-none hidden md:block">
-        <motion.div
-          drag
-          dragConstraints={constraintsRef}
-          dragSnapToOrigin
-          className="absolute left-[14%] top-[20%] -translate-y-10 lg:-translate-y-14 w-auto bg-white border border-stone-200 p-6 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
-          whileHover={{ rotate: -2, scale: 1.05 }}
+        <aside
+          aria-label="Objetivo semanal por grupo"
+          className="absolute left-[14%] top-[20%] -translate-y-10 lg:-translate-y-14 w-auto rounded-3xl border border-stone-200 bg-white p-6 shadow-xl"
         >
           <h3 className="font-serif text-lg mb-4 text-stone-900">Objetivo semanal por grupo</h3>
           <div className="space-y-3 font-sans text-xs uppercase tracking-widest text-stone-600">
@@ -181,20 +177,17 @@ export default function Hero({ data }: HeroProps) {
               </div>
             ))}
           </div>
-        </motion.div>
+        </aside>
 
-        <motion.div
-          drag
-          dragConstraints={constraintsRef}
-          dragSnapToOrigin
-          className="absolute bottom-[14%] right-[14%] translate-y-10 lg:translate-y-12 w-40 h-40 rounded-full bg-stone-900 text-white flex flex-col items-center justify-center p-4 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
-          whileHover={{ scale: 1.1, rotate: 5 }}
+        <aside
+          aria-label="Aprovados ontem"
+          className="absolute bottom-[14%] right-[14%] translate-y-10 lg:translate-y-12 flex h-40 w-40 flex-col items-center justify-center rounded-full bg-stone-900 px-4 py-5 text-white shadow-xl"
         >
           <span className="font-serif text-5xl leading-none">{yesterdayApproved.value}</span>
           <span className="text-[9px] uppercase tracking-widest mt-1 opacity-80 text-center leading-tight">
             {yesterdayApproved.label}
           </span>
-        </motion.div>
+        </aside>
       </div>
 
       <div className="absolute bottom-8 left-1/2 z-30 -translate-x-1/2 text-[10px] uppercase tracking-[0.28em] text-stone-400">

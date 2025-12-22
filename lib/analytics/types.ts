@@ -3,7 +3,7 @@ export type StatusLabel = 'NO JOGO' | 'EM DISPUTA' | 'FORA DO RITMO';
 
 export type ProposalFact = {
   proposalId: number;
-  store: string;
+  store: string | null;
   group: string;
   status: ProposalStatus;
   entryDateISO: string;

@@ -230,7 +230,8 @@ export function buildEditorialSummaryPayload({
     if (key === yesterdayKey) approvedYesterday += p.approved ?? 0;
     if (dt >= weekStart && dt <= yesterday) approvedWeekToYesterday += p.approved ?? 0;
 
-    const store = p.store || 'Loja';
+    const store = p.store;
+    if (!store) continue;
     const group = p.group || 'Sem Grupo';
     const existing = storeStats.get(store) ?? {
       store,

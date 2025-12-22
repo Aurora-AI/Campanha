@@ -53,6 +53,7 @@ export function normalizeProposals(
     const cnpj = firstValue(r, ['cnpj']);
     const store = resolveStoreName(cnpj, cfg);
     const group = resolveGroup(store, cfg);
+    const storeName = store ?? '';
 
     const proposalIdRaw = firstValue(r, ['numero da proposta', 'numero proposta', 'n proposta', 'n da proposta']);
     const proposalId = Number(String(proposalIdRaw).replace(/\D/g, '')) || 0;
@@ -70,7 +71,7 @@ export function normalizeProposals(
 
     out.push({
       proposalId,
-      store,
+      store: storeName,
       group,
       status,
       entryDateISO: entryISO,

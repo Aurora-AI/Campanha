@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { normalizeCnpjDigits, resolveStoreNameFromCnpj, STORE_BY_CNPJ_DIGITS } from '@/lib/campaign/storeCatalog';
+import { normalizeCnpjDigits, STORE_BY_CNPJ_DIGITS } from '@/lib/campaign/storeCatalog';
 
 export type CampaignConfig = {
   campaignId: string;
@@ -39,15 +39,13 @@ export function cnpjDigits(cnpj: string): string {
   return normalizeCnpjDigits(cnpj);
 }
 
-export function resolveStoreName(cnpj: string, cfg: CampaignConfig): string {
-  const resolved = resolveStoreNameFromCnpj(cnpj);
-  if (resolved) return resolved;
+export function resolveStoreName(cnpj: string, cfg: CampaignConfig): string | null {
   const digits = cnpjDigits(cnpj);
-  const mapped = cfg.storeByCnpjDigits?.[digits];
-  return mapped ?? `LOJA DESCONHECIDA (${digits || 'SEM CNPJ'})`;
+  return cfg.storeByCnpjDigits?.[digits] ?? null;
 }
 
-export function resolveGroup(storeName: string, cfg: CampaignConfig): string {
+export function resolveGroup(storeName: string | null, cfg: CampaignConfig): string {
+  if (!storeName) return 'Sem Grupo';
   const prefix = storeName.split(' ').slice(0, 2).join(' ');
   return cfg.groupByStorePrefix[prefix] ?? 'Sem Grupo';
 }

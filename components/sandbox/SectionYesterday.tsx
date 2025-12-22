@@ -3,7 +3,7 @@
 import { MOCK_DB } from '@/lib/sandbox/mock';
 import { useInView } from 'framer-motion';
 import { useRef } from 'react';
-import { ResponsiveContainer, LineChart, Line, XAxis, Tooltip } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis } from 'recharts';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 import FadeIn from './FadeIn';
 
@@ -48,18 +48,13 @@ export default function SectionYesterday() {
                   tick={{ fill: '#a8a29e', fontSize: 12, fontFamily: 'var(--font-inter)' }}
                   dy={10}
                 />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '0px' }}
-                  itemStyle={{ color: '#fff' }}
-                  cursor={{ stroke: '#e5e5e5' }}
-                />
                 <Line
                   type="monotone"
                   dataKey="value"
                   stroke="#000"
                   strokeWidth={2}
                   dot={{ r: 4, fill: '#000', strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: '#000' }}
+                  activeDot={false}
                   isAnimationActive={isInView}
                   animationDuration={2000}
                   animationEasing="ease-out"
