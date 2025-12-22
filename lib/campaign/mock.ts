@@ -159,12 +159,12 @@ export const MOCK_DB: SandboxData = {
     weekEndISO: '2025-12-07T23:59:59.999-03:00',
     targets: {
       byGroup: [
-        { groupId: 'Grupo A', target: 100, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
-        { groupId: 'Grupo B', target: 60, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
-        { groupId: 'Grupo C', target: 66, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+        { groupId: 'Grupo A', target: 100, source: 'Configuração canônica da campanha' },
+        { groupId: 'Grupo B', target: 60, source: 'Configuração canônica da campanha' },
+        { groupId: 'Grupo C', target: 66, source: 'Configuração canônica da campanha' },
       ],
       byStore: [
-        { storeId: 'LOJA 01', storeName: 'Loja 01', source: 'lib/campaign/storeCatalog.ts' },
+        { storeId: 'LOJA 01', storeName: 'Loja 01', source: 'Catálogo de lojas' },
       ],
     },
   },

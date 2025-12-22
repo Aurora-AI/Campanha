@@ -185,7 +185,7 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
 
             <Link
               href="/groups"
-              className="bg-black px-8 py-4 text-xs uppercase tracking-widest text-white transition-colors hover:bg-stone-800"
+              className="border border-stone-300 px-5 py-2 text-[11px] uppercase tracking-widest text-stone-700 transition-colors hover:border-stone-500 hover:text-stone-900"
             >
               Ver grupos
             </Link>
@@ -195,18 +195,19 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
         <FadeIn delay={0.5}>
           <details className="mt-10 rounded-2xl border border-stone-200 bg-white p-6">
             <summary className="cursor-pointer text-xs uppercase tracking-widest text-stone-500">
-              Auditoria de objetivos (semanal)
+              Auditoria — metas em vigor
             </summary>
             <div className="mt-4 space-y-4 text-sm text-stone-600">
               <div className="grid gap-2 md:grid-cols-2">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Semana corrente</div>
-                  <div className="mt-1 font-mono text-xs">{metaAudit.weekStartISO}</div>
-                  <div className="mt-1 font-mono text-xs">{metaAudit.weekEndISO}</div>
+                  <div className="mt-1 text-sm font-semibold text-stone-900">
+                    {new Date(metaAudit.weekStartISO).toLocaleDateString('pt-BR')} até {new Date(metaAudit.weekEndISO).toLocaleDateString('pt-BR')}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Período</div>
-                  <div className="mt-1 font-mono text-xs">{metaAudit.groupsPeriod}</div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Fonte</div>
+                  <div className="mt-1 text-sm font-semibold text-stone-900">Configuração canônica da campanha</div>
                 </div>
               </div>
 
@@ -218,16 +219,15 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
                   >
                     <div className="font-serif text-lg text-stone-900">{g.groupId}</div>
                     <div className="text-xs uppercase tracking-widest text-stone-500">
-                      Objetivo: <span className="font-semibold text-stone-900">{g.target}</span>
+                      Objetivo: <span className="font-semibold text-stone-900">{g.target} aprovações/semana</span>
                     </div>
-                    <div className="font-mono text-[11px] text-stone-500">{g.source}</div>
                   </div>
                 ))}
               </div>
 
               <details className="rounded-xl border border-stone-200 bg-white p-4">
                 <summary className="cursor-pointer text-xs uppercase tracking-widest text-stone-500">
-                  Objetivos por loja
+                  Detalhamento por loja
                 </summary>
                 <div className="mt-4 grid gap-2 md:grid-cols-2">
                   {metaAudit.targets.byStore.map((s) => (
@@ -237,7 +237,6 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
                     >
                       <div className="min-w-0">
                         <div className="truncate font-medium text-stone-900">{s.storeName}</div>
-                        <div className="mt-1 font-mono text-[11px] text-stone-500">{s.source}</div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Objetivo mensal</div>

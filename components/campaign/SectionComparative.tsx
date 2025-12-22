@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   XAxis,
   YAxis,
+  Tooltip,
 } from 'recharts';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 import type { SandboxData } from '@/lib/campaign/mock';
@@ -24,8 +25,36 @@ type ComparativePoint = {
 function toPoints(series: Array<{ dateISO: string; currentValue: number; baselineValue: number | null }>): ComparativePoint[] {
   return series.map((p) => {
     const dt = DateTime.fromISO(p.dateISO);
-    return { ...p, day: dt.isValid ? dt.toFormat('dd') : p.dateISO };
+    return { ...p, day: dt.isValid ? dt.toFormat('dd MMM', { locale: 'pt-BR' }) : p.dateISO };
   });
+}
+
+/**
+ * Custom tooltip para gráficos comparativos
+ * Exibe dia e valores de forma clara, sem animação
+ */
+function ComparativeTooltip({ active, payload }: any) {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0]?.payload;
+  if (!data) return null;
+
+  const prefersReducedMotion = typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  return (
+    <div
+      className={`rounded-sm border border-black/20 bg-white px-3 py-2 text-[11px] text-black/80 shadow-sm ${
+        prefersReducedMotion ? '' : 'transition-opacity duration-75'
+      }`}
+    >
+      <div className="font-medium">{data.day}</div>
+      <div className="text-black/60">Atual: {data.currentValue}</div>
+      {data.baselineValue != null && (
+        <div className="text-black/60">Anterior: {data.baselineValue}</div>
+      )}
+    </div>
+  );
 }
 
 function ComparativeChart({
@@ -55,6 +84,12 @@ function ComparativeChart({
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="day" tickLine={false} axisLine={false} interval={denseInterval} />
               <YAxis tickLine={false} axisLine={false} width={32} />
+              <Tooltip
+                content={<ComparativeTooltip />}
+                cursor={{ stroke: 'rgba(0,0,0,0.1)', strokeWidth: 1 }}
+                contentStyle={{ background: 'transparent', border: 'none' }}
+                wrapperStyle={{ outline: 'none' }}
+              />
               <Line
                 type="monotone"
                 dataKey="currentValue"
@@ -154,29 +189,29 @@ export default function SectionComparative({
 
         <details className="mt-10 rounded-2xl border border-black/10 bg-stone-50 p-6">
           <summary className="cursor-pointer text-xs uppercase tracking-widest text-black/55">
-            Auditoria — objetivos em uso e cobertura de dados
+            Auditoria editorial
           </summary>
           <div className="mt-4 grid gap-6 md:grid-cols-2">
             <div className="rounded-xl border border-black/10 bg-white p-5">
-              <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">Cobertura</div>
-              <div className="mt-3 space-y-1 text-xs text-black/60">
+              <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">Período de dados</div>
+              <div className="mt-3 space-y-2 text-sm text-black/70">
                 <div>
-                  Mês atual carregado:{' '}
-                  <span className="font-mono text-[11px] text-black">
-                    {liveMonth.year}-{String(liveMonth.month).padStart(2, '0')}
-                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-black/45">Mês atual</span>
+                  <div className="mt-1 font-semibold text-black">
+                    {liveMonth.month === 12 ? 'Dezembro' : 'Mês'} {liveMonth.year}
+                  </div>
                 </div>
                 <div>
-                  Mês anterior:{' '}
-                  <span className="font-mono text-[11px] text-black">
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-black/45">Referência (anterior)</span>
+                  <div className="mt-1 font-semibold text-black">
                     {baselineMonth
-                      ? `${baselineMonth.year}-${String(baselineMonth.month).padStart(2, '0')}`
+                      ? `${baselineMonth.month === 11 ? 'Novembro' : 'Mês'} ${baselineMonth.year}`
                       : '—'}
-                  </span>
+                  </div>
                 </div>
                 <div>
-                  Meses disponíveis:{' '}
-                  <span className="font-mono text-[11px] text-black">{coverage.availableMonths.length}</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-black/45">Períodos disponíveis</span>
+                  <div className="mt-1 font-semibold text-black">{coverage.availableMonths.length} meses</div>
                 </div>
               </div>
             </div>

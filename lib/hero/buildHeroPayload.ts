@@ -1,6 +1,7 @@
 import type { MetricsPayload } from "@/lib/metrics/compute";
 import { assets } from "@/lib/assets";
 import { HeroPayloadSchema, type HeroPayload } from "@/schemas/hero.schema";
+import { STORE_BY_CNPJ_DIGITS } from "@/lib/campaign/storeCatalog";
 
 type GroupDef = {
   key: "A" | "B" | "C";
@@ -15,10 +16,26 @@ const GROUPS: GroupDef[] = [
   { key: "C", label: "Grupo C", storeNumbers: ["01", "09", "17", "02", "06", "14", "08", "18", "16"], perStoreTarget: 6 },
 ];
 
-const storeNumberFromName = (store: string): string | null => {
-  const m = /\bLOJA\s+(\d{1,2})\b/i.exec(store);
-  if (!m?.[1]) return null;
-  return m[1].padStart(2, "0");
+/**
+ * Resolve store number (padded) from canonical store name.
+ * ONLY uses the canonical mapping, no regex inference.
+ * Returns null if store is not in canonical catalog.
+ */
+const extractStoreNumberFromCanonical = (storeName: string): string | null => {
+  // Formato canônico: "LOJA NN LOCATION"
+  // Extrai o número e valida contra catálogo
+  const parts = storeName.split(/\s+/);
+  if (parts[0].toUpperCase() !== 'LOJA' || !parts[1]) return null;
+
+  const num = parts[1];
+  const padded = num.padStart(2, '0');
+
+  // Validar que este número existe no catálogo
+  const existsInCatalog = Object.values(STORE_BY_CNPJ_DIGITS).some(
+    (name) => name.includes(`LOJA ${padded}`) || name.includes(`LOJA ${num}`)
+  );
+
+  return existsInCatalog ? padded : null;
 };
 
 const formatIntPtBr = (value: number): string => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value);
@@ -26,7 +43,7 @@ const formatIntPtBr = (value: number): string => new Intl.NumberFormat("pt-BR", 
 export function buildHeroPayload(metrics: MetricsPayload): HeroPayload {
   const approvedByStoreNumber = new Map<string, number>();
   for (const s of metrics.stores) {
-    const n = storeNumberFromName(s.store);
+    const n = extractStoreNumberFromCanonical(s.store);
     if (!n) continue;
     approvedByStoreNumber.set(n, (approvedByStoreNumber.get(n) ?? 0) + s.approved);
   }

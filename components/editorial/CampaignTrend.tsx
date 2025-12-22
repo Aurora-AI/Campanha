@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useRef } from 'react';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 
 type StatusLabel = 'NO JOGO' | 'EM DISPUTA' | 'FORA DO RITMO';
@@ -34,6 +37,10 @@ export default function CampaignTrend({
   const padding = 16;
   const { line, target } = colorsForStatus(statusLabel);
 
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
   if (points.length < 2) {
     return (
       <div className="rounded-sm border border-black/10 bg-white p-6 md:p-8 shadow-sm">
@@ -54,6 +61,7 @@ export default function CampaignTrend({
     x: padding + i * step,
     yApproved: height - padding - (p.approved / maxValue) * chartHeight,
     yTarget: height - padding - (p.target / maxValue) * chartHeight,
+    point: p,
   }));
 
   const pathFor = (key: 'yApproved' | 'yTarget') =>
@@ -65,18 +73,86 @@ export default function CampaignTrend({
   const approvedPath = pathFor('yApproved');
   const targetPath = showTarget ? pathFor('yTarget') : '';
 
+  const handleSvgMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+
+    const svg = svgRef.current;
+    const rect = svg.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    // Encontra o ponto mais próximo
+    let closestIdx = 0;
+    let minDist = Math.abs(coords[0].x - x);
+
+    for (let i = 1; i < coords.length; i++) {
+      const dist = Math.abs(coords[i].x - x);
+      if (dist < minDist) {
+        minDist = dist;
+        closestIdx = i;
+      }
+    }
+
+    setHoverIndex(closestIdx);
+    setTooltipPos({ x: coords[closestIdx].x, y: coords[closestIdx].yApproved });
+  };
+
+  const handleSvgLeave = () => {
+    setHoverIndex(null);
+    setTooltipPos(null);
+  };
+
+  const prefersReducedMotion = typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   return (
     <div className="rounded-sm border border-black/10 bg-white p-6 md:p-8 shadow-sm">
       <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">{title}</div>
-      <div className="mt-4 min-w-0">
+      <div className="mt-4 min-w-0 relative">
         <ChartFrame variant={compact ? 'compact' : 'home'}>
-          <svg className="h-full w-full" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+          <svg
+            ref={svgRef}
+            className="h-full w-full"
+            viewBox={`0 0 ${width} ${height}`}
+            aria-hidden="true"
+            onMouseMove={handleSvgMove}
+            onMouseLeave={handleSvgLeave}
+            style={{ cursor: 'crosshair' }}
+          >
             <path d={approvedPath} fill="none" stroke={line} strokeWidth="1.8" strokeLinecap="round" />
             {showTarget ? (
               <path d={targetPath} fill="none" stroke={target} strokeWidth="1" strokeDasharray="4 4" />
             ) : null}
+
+            {/* Crosshair (linha vertical sutil) ao hover */}
+            {hoverIndex !== null && tooltipPos && (
+              <line
+                x1={tooltipPos.x}
+                y1={padding}
+                x2={tooltipPos.x}
+                y2={height - padding}
+                stroke="rgba(0,0,0,0.1)"
+                strokeWidth="1"
+                pointerEvents="none"
+              />
+            )}
           </svg>
         </ChartFrame>
+
+        {/* Tooltip */}
+        {hoverIndex !== null && tooltipPos && (
+          <div
+            className={`absolute rounded-sm border border-black/20 bg-white px-3 py-2 text-[11px] text-black/80 shadow-sm pointer-events-none ${
+              prefersReducedMotion ? '' : 'transition-opacity duration-75'
+            }`}
+            style={{
+              left: `calc(${(tooltipPos.x / width) * 100}% - 50px)`,
+              top: `calc(${(tooltipPos.y / height) * 100}% - 60px)`,
+            }}
+          >
+            <div className="font-medium">{coords[hoverIndex].point.label}</div>
+            <div className="text-black/60">Aprovados: {coords[hoverIndex].point.approved}</div>
+          </div>
+        )}
       </div>
       {showTarget ? (
         <div className="mt-3 text-[10px] uppercase tracking-[0.22em] text-black/45">— — Ritmo necessario</div>

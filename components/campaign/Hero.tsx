@@ -129,7 +129,7 @@ export default function Hero({ data }: HeroProps) {
 
       {/* Main Content Layer - Editorial/static */}
       <div className="relative z-40 w-full max-w-5xl px-6 pt-24 text-center text-black pointer-events-none md:pt-32 mx-auto">
-        <h1 className="font-serif text-[10vw] leading-[0.85] tracking-[-0.03em] whitespace-nowrap">
+        <h1 className="font-serif text-[9vw] leading-[0.85] tracking-[-0.03em] whitespace-nowrap">
           {headline}
         </h1>
         <p className="font-sans text-[12px] md:text-[13px] mt-8 tracking-[0.22em] uppercase text-black/55 max-w-xl mx-auto truncate">

@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Tooltip,
 } from 'recharts';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 
@@ -31,6 +32,28 @@ const FALLBACK_DATA: EvolutionPoint[] = [
   { day: 'Sun', value: 58 },
 ];
 
+/**
+ * Custom tooltip: exibe dia e valor sem "espetáculo"
+ * Respeita prefers-reduced-motion
+ */
+function CustomTooltip({ active, payload }: any) {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0];
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  return (
+    <div
+      className={`rounded-sm border border-black/20 bg-white px-3 py-2 text-[11px] text-black/80 shadow-sm ${
+        prefersReducedMotion ? '' : 'transition-opacity duration-75'
+      }`}
+    >
+      <div className="font-medium">{data.payload.day}</div>
+      <div className="text-black/60">Aprovados: {data.value}</div>
+    </div>
+  );
+}
+
 export default function EvolutionChart({
   data = FALLBACK_DATA,
   variant = 'bi',
@@ -53,6 +76,12 @@ export default function EvolutionChart({
             interval={denseInterval}
           />
           <YAxis tickLine={false} axisLine={false} width={28} />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{ stroke: 'rgba(0,0,0,0.1)', strokeWidth: 1 }}
+            contentStyle={{ background: 'transparent', border: 'none' }}
+            wrapperStyle={{ outline: 'none' }}
+          />
           <Line
             type="monotone"
             dataKey="value"
