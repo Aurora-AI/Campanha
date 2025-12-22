@@ -4,6 +4,7 @@ import { MOCK_DB } from '@/lib/campaign/mock';
 import { motion } from 'framer-motion';
 import FadeIn from '../sandbox/FadeIn';
 import { buildGroupsPulseVM } from '@/lib/viewmodels/groupsPulse.vm';
+import Link from 'next/link';
 
 type RadialThermometerProps = {
   size: number;
@@ -57,7 +58,7 @@ function RadialThermometer({
       </svg>
 
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="font-serif text-2xl italic text-stone-900" style={{ color: labelColor }}>
+        <span className="font-serif text-xl tracking-tight text-stone-900" style={{ color: labelColor }}>
           {labelText}
         </span>
       </div>
@@ -80,19 +81,26 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
     size: 120,
   });
 
+  const statusEmoji = status === 'NO_JOGO' ? '🟢' : status === 'FORA_DO_RITMO' ? '🔴' : '🟡';
+
   return (
-    <section className="w-full bg-stone-50 py-36">
+    <section id="campanha" className="w-full bg-white py-24 md:py-32">
       <div className="mx-auto w-[min(1400px,92vw)]">
         <FadeIn>
           <div className="mb-16 flex flex-col items-end justify-between border-b border-stone-200 pb-8 md:flex-row">
-            <h2 className="font-serif text-5xl tracking-tighter md:text-6xl">Group Pulse</h2>
+            <div>
+              <h2 className="font-serif text-5xl tracking-tighter md:text-6xl">Estado da campanha</h2>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-500">
+                Termômetro editorial por grupo. O arco mostra o ritmo relativo ao objetivo semanal.
+              </p>
+            </div>
 
             <div className="mt-4 flex items-center gap-4 md:mt-0">
-              <span className="text-sm uppercase tracking-widest text-stone-400">Campaign Status:</span>
+              <span className="text-sm uppercase tracking-widest text-stone-400">Status:</span>
               <div
                 className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest text-white ${vm.statusPillClass}`}
               >
-                {vm.statusLabel}
+                {statusEmoji} {vm.statusLabel}
               </div>
             </div>
           </div>
@@ -126,16 +134,19 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
           >
             <div>
               <span className="mb-2 block text-xs uppercase tracking-widest text-stone-400">
-                Recommended Action
+                Próxima ação
               </span>
               <p className="font-serif text-xl text-stone-800 md:text-2xl">
                 &quot;{vm.nextAction}&quot;
               </p>
             </div>
 
-            <button className="bg-black px-8 py-4 text-xs uppercase tracking-widest text-white transition-colors hover:bg-stone-800">
-              Execute Strategy
-            </button>
+            <Link
+              href="/groups"
+              className="bg-black px-8 py-4 text-xs uppercase tracking-widest text-white transition-colors hover:bg-stone-800"
+            >
+              Ver grupos
+            </Link>
           </motion.div>
         </FadeIn>
       </div>

@@ -2,6 +2,7 @@
 
 import { MOCK_DB } from '@/lib/campaign/mock';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 type SectionReengagementProps = {
   data: typeof MOCK_DB.reengagement;
@@ -11,7 +12,10 @@ export default function SectionReengagement({ data }: SectionReengagementProps) 
   const { title, subtitle } = data;
 
   return (
-    <section className="w-full py-40 bg-black text-white text-center flex flex-col items-center justify-center overflow-hidden relative">
+    <section
+      id="acao"
+      className="relative flex w-full flex-col items-center justify-center overflow-hidden bg-black py-28 text-center text-white md:py-36"
+    >
 
        <motion.div
          initial={{ opacity: 0, scale: 0.9 }}
@@ -28,9 +32,12 @@ export default function SectionReengagement({ data }: SectionReengagementProps) 
                {subtitle}
            </p>
 
-           <button className="mt-12 px-8 py-4 border border-white/30 text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all duration-300">
-               Initiate Recovery Protocol
-           </button>
+           <Link
+             href="/timeline"
+             className="mt-12 inline-flex px-8 py-4 border border-white/30 text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-all duration-300"
+           >
+             Abrir timeline
+           </Link>
        </motion.div>
 
        {/* Subtle Background Pattern */}

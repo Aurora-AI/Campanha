@@ -1,22 +1,28 @@
 export type CampaignStatus = 'NO_JOGO' | 'EM_DISPUTA' | 'FORA_DO_RITMO';
 
 export const NAV_LINKS = [
-  { label: "Overview", href: "#" },
-  { label: "Timeline", href: "#" },
-  { label: "Groups", href: "#" },
-  { label: "KPIs", href: "#" },
+  { label: "Dia", href: "#dia" },
+  { label: "Campanha", href: "#campanha" },
+  { label: "Ação", href: "#acao" },
+  { label: "KPIs", href: "#kpis" },
+  { label: "Fechamento", href: "#fechamento" },
 ];
 
 export interface SandboxData {
   hero: {
     headline: string;
     subheadline: string;
-    weeklyGoals: { group: string; target: number; actual: number }[];
+    weeklyGoals: { group: string; target: number; actual: number; onTrack: boolean }[];
     yesterdayApproved: { value: number; label: string };
     puzzleImages?: string[];
   };
   movement: {
-    yesterdayResult: { value: number; label: string; delta: string };
+    title: string;
+    subtitle: string;
+    dayLabel: string;
+    yesterdayResult: { value: number; label: string; deltaText?: string };
+    podium: Array<{ label: string; value: string }>;
+    storeList: Array<{ label: string; value: string }>;
     timeline: { day: string; value: number }[];
   };
   campaign: {
@@ -35,48 +41,61 @@ export interface SandboxData {
 
 export const MOCK_DB: SandboxData = {
   hero: {
-    headline: "Campaign \nPerformance",
-    subheadline: "Daily evolution and strategic insights for the modern era.",
+    headline: "Aceleração 2025",
+    subheadline: "Ritmo diário e leitura rápida do que importa hoje.",
     weeklyGoals: [
-      { group: "Alpha", target: 100, actual: 85 },
-      { group: "Beta", target: 120, actual: 110 },
-      { group: "Gamma", target: 90, actual: 95 }
+      { group: "Grupo A", target: 100, actual: 85, onTrack: false },
+      { group: "Grupo B", target: 60, actual: 52, onTrack: false },
+      { group: "Grupo C", target: 66, actual: 48, onTrack: false }
     ],
-    yesterdayApproved: { value: 142, label: "Approved Yesterday" }
+    yesterdayApproved: { value: 142, label: "Aprovados ontem" }
   },
   movement: {
-    yesterdayResult: { value: 98, label: "Yesterday's Performance", delta: "+12%" },
+    title: "Resultado de ontem",
+    subtitle: "Três referências de aprovações. A lista abaixo aparece sem ordem de mérito.",
+    dayLabel: "Ontem",
+    yesterdayResult: { value: 98, label: "Aprovados ontem", deltaText: "+12 vs dia anterior" },
+    podium: [
+      { label: "Loja 01", value: "12 aprov." },
+      { label: "Loja 02", value: "10 aprov." },
+      { label: "Loja 03", value: "9 aprov." },
+    ],
+    storeList: [
+      { label: "Loja 04", value: "6 aprov." },
+      { label: "Loja 05", value: "5 aprov." },
+      { label: "Loja 06", value: "3 aprov." }
+    ],
     timeline: [
-      { day: "Mon", value: 65 },
-      { day: "Tue", value: 78 },
-      { day: "Wed", value: 98 },
-      { day: "Thu", value: 85 },
-      { day: "Fri", value: 110 }
+      { day: "Seg", value: 65 },
+      { day: "Ter", value: 78 },
+      { day: "Qua", value: 98 },
+      { day: "Qui", value: 85 },
+      { day: "Sex", value: 110 }
     ]
   },
   campaign: {
     groupsRadial: [
-      { group: "A", score: 85 },
-      { group: "B", score: 60 },
-      { group: "C", score: 92 }
+      { group: "Grupo A", score: 85 },
+      { group: "Grupo B", score: 60 },
+      { group: "Grupo C", score: 72 }
     ],
     status: 'EM_DISPUTA',
-    statusLabel: "Em Disputa",
-    nextAction: "Accelerate re-engagement for Group B to secure the lead."
+    statusLabel: "EM DISPUTA",
+    nextAction: "Ajustar o foco hoje: destravar pendências e retomar contatos quentes."
   },
   reengagement: {
-    title: "Rupture Point",
-    subtitle: "Identify and recover lost opportunities before they churn."
+    title: "Ruptura de foco",
+    subtitle: "Recuperar oportunidades antes de esfriar: revisar pendências e acelerar retorno."
   },
   kpis: [
-    { label: "Conversion Rate", value: "24.5%", delta: "+2.1%" },
-    { label: "Avg Ticket", value: "R$ 4.2k", delta: "-0.5%" },
-    { label: "Lead Velocity", value: "12h", delta: "-1h" },
-    { label: "Active CAC", value: "R$ 120", delta: "+5%" }
+    { label: "Aprovados (total)", value: "1250", delta: "+12" },
+    { label: "Digitados (total)", value: "3300", delta: "+31" },
+    { label: "Taxa de aprovação", value: "24%", delta: "+1pp" },
+    { label: "Lojas ativas", value: "21" }
   ],
   accumulated: {
     monthTotal: 1250,
-    label: "Accumulated Production (Monthly)"
+    label: "Produção acumulada no mês"
   }
 };
 

@@ -4,37 +4,33 @@ import FadeIn from './FadeIn';
 
 export default function Footer() {
   return (
-    <footer className="bg-stone-900 text-stone-400 py-24 px-8 md:px-16">
-      <FadeIn className="flex flex-col md:flex-row justify-between items-end gap-12">
-
+    <footer className="bg-stone-900 px-6 py-20 text-stone-300 md:py-24">
+      <FadeIn className="mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-12 md:flex-row md:items-end">
         <div className="flex flex-col gap-4">
-           <h2 className="text-white font-serif text-4xl">Exo Ape Clone</h2>
-           <p className="max-w-xs text-sm leading-relaxed">
-             A digital design sandbox exploring editorial layouts and interactions.
-           </p>
+          <h2 className="font-serif text-4xl text-white">Mycelium · Campanha</h2>
+          <p className="max-w-sm text-sm leading-relaxed text-stone-400">
+            Leitura editorial do ritmo diário. Dados entram pelo CSV; a Home permanece um molde fixo.
+          </p>
         </div>
 
-        <nav className="flex flex-col md:flex-row gap-8 md:gap-16">
-            <div className="flex flex-col gap-4">
-                <span className="text-xs uppercase tracking-widest text-white mb-2">Sitemap</span>
-                {NAV_LINKS.map(link => (
-                    <Link key={link.label} href={link.href} className="text-sm hover:text-white transition-colors">
-                        {link.label}
-                    </Link>
-                ))}
-            </div>
-            <div className="flex flex-col gap-4">
-                <span className="text-xs uppercase tracking-widest text-white mb-2">Socials</span>
-                <Link href="#" className="text-sm hover:text-white transition-colors">Twitter/X</Link>
-                <Link href="#" className="text-sm hover:text-white transition-colors">Instagram</Link>
-                <Link href="#" className="text-sm hover:text-white transition-colors">LinkedIn</Link>
-            </div>
+        <nav className="flex flex-wrap items-center gap-5">
+          {NAV_LINKS.map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              className="text-xs uppercase tracking-[0.24em] text-stone-400 transition-colors hover:text-white"
+            >
+              {item.label}
+            </a>
+          ))}
         </nav>
       </FadeIn>
 
-      <div className="mt-24 pt-8 border-t border-stone-800 flex justify-between items-center text-xs uppercase tracking-widest">
-         <span>© 2025 Campaign</span>
-         <span>Aurora AI</span>
+      <div className="mx-auto mt-16 flex w-full max-w-6xl items-center justify-between border-t border-stone-800 pt-6 text-xs uppercase tracking-widest text-stone-500">
+        <span>© 2025 Aurora</span>
+        <Link href="/admin/login" className="transition-colors hover:text-white">
+          Admin
+        </Link>
       </div>
     </footer>
   );

@@ -12,7 +12,7 @@ export default function SectionTotal({ data }: SectionTotalProps) {
   const { monthTotal, label } = data;
 
   return (
-    <section className="w-full py-32 bg-stone-100 flex items-center justify-center">
+    <section id="fechamento" className="flex w-full items-center justify-center bg-stone-100 py-28 md:py-32">
        <FadeIn>
            <div className="text-center">
                <span className="block font-sans text-sm uppercase tracking-[0.2em] text-stone-500 mb-6">
@@ -31,7 +31,7 @@ export default function SectionTotal({ data }: SectionTotalProps) {
                    />
                </div>
                <p className="mt-12 font-serif italic text-stone-600 text-xl">
-                   &quot;Pacing towards a record-breaking quarter.&quot;
+                   &quot;Fechamento do mês: consistência agora vale mais do que pico.&quot;
                </p>
            </div>
        </FadeIn>

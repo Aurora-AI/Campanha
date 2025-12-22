@@ -52,6 +52,12 @@ function scoreToColor(score: number): string {
   return '#ef4444';
 }
 
+function shortGroupLabel(group: string): string {
+  const cleaned = group.replace(/^grupo\s+/i, '').trim();
+  if (cleaned) return cleaned;
+  return group.trim().slice(0, 1).toUpperCase() || '-';
+}
+
 export function buildGroupsPulseVM(args: {
   groupsRadial: GroupRadialInput[];
   status: CampaignStatus;
@@ -69,11 +75,12 @@ export function buildGroupsPulseVM(args: {
     const score = clamp(g.score, 0, 100);
     const offset = circumference - (score / 100) * circumference;
     const stroke = scoreToColor(score);
+    const label = shortGroupLabel(g.group);
 
     return {
       key: g.group,
-      title: `Group ${g.group}`,
-      caption: 'Efficiency Score',
+      title: g.group,
+      caption: 'Ritmo semanal',
       delay: i * 0.1,
       thermometer: {
         size,
@@ -81,7 +88,7 @@ export function buildGroupsPulseVM(args: {
         circumference,
         offset,
         stroke,
-        labelText: `${score}%`,
+        labelText: label,
         labelColor: stroke,
         cx: size / 2,
         cy: size / 2,

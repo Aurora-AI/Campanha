@@ -52,7 +52,10 @@ export default function Hero({ data }: HeroProps) {
   }, []);
 
   return (
-    <section ref={constraintsRef} className="relative isolate w-full min-h-[80svh] overflow-hidden bg-white flex items-center justify-center">
+    <section
+      ref={constraintsRef}
+      className="relative isolate flex w-full min-h-[80svh] items-center justify-center overflow-hidden bg-white"
+    >
       {/* HeroMedia - full-bleed */}
       <div ref={mediaRef} className="absolute inset-0 z-0 pointer-events-none will-change-transform">
         <Image
@@ -69,7 +72,7 @@ export default function Hero({ data }: HeroProps) {
 
       {/* Main Content Layer - Choreographed */}
       <motion.div
-        className="relative z-30 text-center pointer-events-none mix-blend-difference text-stone-900 px-6 pt-24 md:pt-32"
+        className="relative z-40 w-full max-w-5xl px-6 pt-24 text-center mix-blend-difference text-stone-900 pointer-events-none md:pt-32"
         initial="hidden"
         animate="visible"
         variants={containerVariants}
@@ -80,27 +83,53 @@ export default function Hero({ data }: HeroProps) {
         <motion.p variants={itemVariants} className="font-sans text-sm md:text-base mt-8 tracking-widest uppercase opacity-80 max-w-md mx-auto">
             {subheadline}
         </motion.p>
+
+        {/* Satellites (stacked on mobile to avoid overlap) */}
+        <div className="mt-10 grid w-full max-w-xl grid-cols-1 gap-4 text-left pointer-events-auto md:hidden">
+          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-stone-500">
+              Objetivo semanal por grupo
+            </div>
+            <div className="mt-4 space-y-3 text-xs uppercase tracking-widest text-stone-700">
+              {weeklyGoals.map((g) => (
+                <div key={g.group} className="flex items-center justify-between gap-6 border-b border-stone-100 pb-2">
+                  <span>{g.group}</span>
+                  <span className={g.onTrack ? "text-emerald-600" : "text-stone-400"}>
+                    {g.actual}/{g.target}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-stone-900 p-5 text-white shadow-sm">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-white/65">
+              {yesterdayApproved.label}
+            </div>
+            <div className="mt-3 font-serif text-4xl leading-none">{yesterdayApproved.value}</div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Satellites (Draggable) - Delayed Entrance */}
-      <div className="absolute inset-0 z-40 pointer-events-none">
+      <div className="absolute inset-0 z-30 pointer-events-none hidden md:block">
         {/* Left Satellite (Weekly Goals) - Wide Spacing [10%] */}
         <motion.div
            drag
            dragConstraints={constraintsRef}
            dragSnapToOrigin
-           className="absolute top-1/3 left-[10%] w-auto bg-white border border-stone-200 p-6 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
+           className="absolute left-[14%] top-[22%] -translate-y-6 w-auto bg-white border border-stone-200 p-6 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
            whileHover={{ rotate: -2, scale: 1.05 }}
            initial={{ opacity: 0, x: -50 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ delay: 0.5, duration: 0.8 }}
         >
-            <h3 className="font-serif text-lg mb-4 text-stone-900">Weekly Goals</h3>
+            <h3 className="font-serif text-lg mb-4 text-stone-900">Objetivo semanal por grupo</h3>
             <div className="space-y-3 font-sans text-xs uppercase tracking-widest text-stone-600">
                 {weeklyGoals.map((g) => (
                     <div key={g.group} className="flex justify-between gap-8 border-b border-stone-100 pb-1">
                         <span>{g.group}</span>
-                        <span className={g.actual >= g.target ? "text-emerald-600" : "text-stone-400"}>
+                        <span className={g.onTrack ? "text-emerald-600" : "text-stone-400"}>
                             {g.actual}/{g.target}
                         </span>
                     </div>
@@ -113,7 +142,7 @@ export default function Hero({ data }: HeroProps) {
            drag
            dragConstraints={constraintsRef}
            dragSnapToOrigin
-           className="absolute bottom-1/4 right-[10%] w-40 h-40 rounded-full bg-stone-900 text-white flex flex-col items-center justify-center p-4 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
+           className="absolute bottom-[14%] right-[14%] translate-y-6 w-40 h-40 rounded-full bg-stone-900 text-white flex flex-col items-center justify-center p-4 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
            whileHover={{ scale: 1.1, rotate: 5 }}
            initial={{ opacity: 0, y: 50 }}
            animate={{ opacity: 1, y: 0 }}
@@ -134,7 +163,7 @@ export default function Hero({ data }: HeroProps) {
         animate={{ opacity: 1 }}
         transition={{ delay: 1, duration: 1, repeat: Infinity, repeatType: "reverse" }}
       >
-        Scroll to Explore
+        Role para explorar
       </motion.div>
 
     </section>
