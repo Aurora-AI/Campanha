@@ -2,7 +2,7 @@
 
 import type { SandboxData } from '@/lib/campaign/mock';
 import PodiumHighlight from '@/components/campaign/PodiumHighlight';
-import GlassStoreRankingColumns from '@/components/rankings/GlassStoreRankingColumns';
+import FloatingStoreRankingColumns from '@/components/rankings/FloatingStoreRankingColumns';
 
 type SectionYesterdayProps = {
   data: SandboxData['movement'];
@@ -35,7 +35,7 @@ export default function SectionYesterday({ data }: SectionYesterdayProps) {
         </div>
 
         <div className="mt-8">
-          <GlassStoreRankingColumns columns={storeColumns} />
+          <FloatingStoreRankingColumns columns={storeColumns} />
         </div>
       </div>
     </section>
