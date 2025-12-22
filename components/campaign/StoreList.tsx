@@ -21,7 +21,7 @@ export default function StoreList({
       {items.length === 0 ? (
         <div className="mt-4 text-sm text-black/55">{emptyLabel}</div>
       ) : (
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (
             <div
               key={item.label}
@@ -36,4 +36,3 @@ export default function StoreList({
     </div>
   );
 }
-

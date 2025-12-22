@@ -30,13 +30,40 @@ export interface SandboxData {
     status: CampaignStatus;
     statusLabel: string;
     nextAction: string;
+    groupsWeekly: {
+      period: 'weekly';
+      weekLabel: string;
+      window: { startISO: string; endISO: string };
+      items: Array<{
+        groupId: string;
+        groupName: string;
+        achieved: number;
+        target: number;
+        attainmentPct: number; // 0..1
+        achievedLabel: string;
+        targetLabel: string;
+        attainmentLabel: string; // e.g. "78%"
+        status: CampaignStatus;
+      }>;
+    };
+    metaAudit: {
+      campaign: { startISO: string; endISO: string };
+      groupsPeriod: 'weekly';
+      weekWindow: { startISO: string; endISO: string; weekLabel: string };
+      byGroup: Array<{ groupId: string; groupName: string; target: number; source: string }>;
+    };
   };
   reengagement: {
     title: string;
     subtitle: string;
   };
   kpis: { label: string; value: string; delta?: string }[];
-  accumulated: { monthTotal: number; label: string };
+  accumulated: {
+    monthTotal: number;
+    label: string;
+    windowLabel: string;
+    stores: Array<{ label: string; value: string }>;
+  };
 }
 
 export const MOCK_DB: SandboxData = {
@@ -81,7 +108,61 @@ export const MOCK_DB: SandboxData = {
     ],
     status: 'EM_DISPUTA',
     statusLabel: "EM DISPUTA",
-    nextAction: "Ajustar o foco hoje: destravar pendências e retomar contatos quentes."
+    nextAction: "Ajustar o foco hoje: destravar pendências e retomar contatos quentes.",
+    groupsWeekly: {
+      period: 'weekly',
+      weekLabel: 'Semana 01–07 Dez',
+      window: { startISO: '2025-12-01T00:00:00.000-03:00', endISO: '2025-12-07T23:59:59.999-03:00' },
+      items: [
+        {
+          groupId: 'Grupo A',
+          groupName: 'Grupo A',
+          achieved: 85,
+          target: 100,
+          attainmentPct: 0.85,
+          achievedLabel: '85',
+          targetLabel: '100',
+          attainmentLabel: '85%',
+          status: 'EM_DISPUTA',
+        },
+        {
+          groupId: 'Grupo B',
+          groupName: 'Grupo B',
+          achieved: 52,
+          target: 60,
+          attainmentPct: 0.866,
+          achievedLabel: '52',
+          targetLabel: '60',
+          attainmentLabel: '87%',
+          status: 'EM_DISPUTA',
+        },
+        {
+          groupId: 'Grupo C',
+          groupName: 'Grupo C',
+          achieved: 48,
+          target: 66,
+          attainmentPct: 0.727,
+          achievedLabel: '48',
+          targetLabel: '66',
+          attainmentLabel: '73%',
+          status: 'FORA_DO_RITMO',
+        },
+      ],
+    },
+    metaAudit: {
+      campaign: { startISO: '2025-12-01T00:00:00.000-03:00', endISO: '2025-12-31T23:59:59.999-03:00' },
+      groupsPeriod: 'weekly',
+      weekWindow: {
+        startISO: '2025-12-01T00:00:00.000-03:00',
+        endISO: '2025-12-07T23:59:59.999-03:00',
+        weekLabel: 'Semana 01–07 Dez',
+      },
+      byGroup: [
+        { groupId: 'Grupo A', groupName: 'Grupo A', target: 100, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+        { groupId: 'Grupo B', groupName: 'Grupo B', target: 60, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+        { groupId: 'Grupo C', groupName: 'Grupo C', target: 66, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+      ],
+    },
   },
   reengagement: {
     title: "Ruptura de foco",
@@ -95,7 +176,13 @@ export const MOCK_DB: SandboxData = {
   ],
   accumulated: {
     monthTotal: 1250,
-    label: "Produção acumulada no mês"
+    label: "Produção acumulada no mês",
+    windowLabel: '01/12 até hoje',
+    stores: [
+      { label: 'Loja 01', value: '112' },
+      { label: 'Loja 02', value: '98' },
+      { label: 'Loja 03', value: '94' },
+    ],
   }
 };
 

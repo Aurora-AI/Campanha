@@ -3,17 +3,33 @@ export type CampaignStatus = 'NO_JOGO' | 'EM_DISPUTA' | 'FORA_DO_RITMO';
 export type GroupRadialInput = {
   group: string;
   score: number;
+  achievedLabel?: string;
+  targetLabel?: string;
+  attainmentLabel?: string;
+  status?: CampaignStatus;
 };
 
 export type GroupsPulseVM = {
   statusLabel: string;
   statusPillClass: string;
   nextAction: string;
+  weekLabel?: string;
+  window?: { startISO: string; endISO: string };
+  metaAudit?: {
+    campaign: { startISO: string; endISO: string };
+    groupsPeriod: 'weekly';
+    weekWindow: { startISO: string; endISO: string; weekLabel: string };
+    byGroup: Array<{ groupId: string; groupName: string; target: number; source: string }>;
+  };
   cards: Array<{
     key: string;
     title: string;
     caption: string;
     delay: number;
+    achievedLabel?: string;
+    targetLabel?: string;
+    attainmentLabel?: string;
+    statusEmoji?: string;
     thermometer: {
       size: number;
       radius: number;
@@ -52,6 +68,13 @@ function scoreToColor(score: number): string {
   return '#ef4444';
 }
 
+function statusToEmoji(status: CampaignStatus | undefined): string | undefined {
+  if (!status) return undefined;
+  if (status === 'NO_JOGO') return '🟢';
+  if (status === 'FORA_DO_RITMO') return '🔴';
+  return '🟡';
+}
+
 function shortGroupLabel(group: string): string {
   const cleaned = group.replace(/^grupo\s+/i, '').trim();
   if (cleaned) return cleaned;
@@ -63,6 +86,9 @@ export function buildGroupsPulseVM(args: {
   status: CampaignStatus;
   statusLabel: string;
   nextAction: string;
+  weekLabel?: string;
+  window?: { startISO: string; endISO: string };
+  metaAudit?: GroupsPulseVM['metaAudit'];
   size?: number;
 }): GroupsPulseVM {
   const size = args.size ?? 120;
@@ -82,6 +108,10 @@ export function buildGroupsPulseVM(args: {
       title: g.group,
       caption: 'Ritmo semanal',
       delay: i * 0.1,
+      achievedLabel: g.achievedLabel,
+      targetLabel: g.targetLabel,
+      attainmentLabel: g.attainmentLabel,
+      statusEmoji: statusToEmoji(g.status),
       thermometer: {
         size,
         radius,
@@ -101,6 +131,9 @@ export function buildGroupsPulseVM(args: {
     statusLabel: args.statusLabel,
     statusPillClass: statusToPillClass(args.status),
     nextAction: args.nextAction,
+    weekLabel: args.weekLabel,
+    window: args.window,
+    metaAudit: args.metaAudit,
     cards,
   };
 }

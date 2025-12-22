@@ -71,17 +71,30 @@ type SectionGroupsProps = {
 };
 
 export default function SectionGroups({ data }: SectionGroupsProps) {
-  const { groupsRadial, status, statusLabel, nextAction } = data;
+  const { groupsRadial, status, statusLabel, nextAction, groupsWeekly, metaAudit } = data;
+
+  const weeklyByGroup = new Map(groupsWeekly.items.map((g) => [g.groupName, g]));
+  const enrichedRadial = groupsRadial.map((g) => {
+    const weekly = weeklyByGroup.get(g.group);
+    return {
+      ...g,
+      achievedLabel: weekly?.achievedLabel,
+      targetLabel: weekly?.targetLabel,
+      attainmentLabel: weekly?.attainmentLabel,
+      status: weekly?.status,
+    };
+  });
 
   const vm = buildGroupsPulseVM({
-    groupsRadial,
+    groupsRadial: enrichedRadial,
     status,
     statusLabel,
     nextAction,
+    weekLabel: groupsWeekly.weekLabel,
+    window: groupsWeekly.window,
+    metaAudit,
     size: 120,
   });
-
-  const statusEmoji = status === 'NO_JOGO' ? '🟢' : status === 'FORA_DO_RITMO' ? '🔴' : '🟡';
 
   return (
     <section id="campanha" className="w-full bg-white py-24 md:py-32">
@@ -93,6 +106,9 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-500">
                 Termômetro editorial por grupo. O arco mostra o ritmo relativo ao objetivo semanal.
               </p>
+              <div className="mt-4 text-[10px] uppercase tracking-[0.28em] text-stone-400">
+                {vm.weekLabel}
+              </div>
             </div>
 
             <div className="mt-4 flex items-center gap-4 md:mt-0">
@@ -100,7 +116,7 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
               <div
                 className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest text-white ${vm.statusPillClass}`}
               >
-                {statusEmoji} {vm.statusLabel}
+                {vm.statusLabel}
               </div>
             </div>
           </div>
@@ -121,6 +137,31 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
                 <RadialThermometer {...card.thermometer} />
                 <h3 className="mt-6 font-serif text-2xl">{card.title}</h3>
                 <p className="mt-2 text-xs uppercase tracking-widest text-stone-400">{card.caption}</p>
+
+                <div className="mt-6 w-full rounded-xl border border-stone-200 bg-stone-50 p-4">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.28em] text-stone-500">Realizado</div>
+                      <div className="mt-1 font-serif text-3xl tracking-tight text-stone-900">
+                        {card.achievedLabel ?? '0'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-[0.28em] text-stone-500">Objetivo</div>
+                      <div className="mt-1 font-serif text-3xl tracking-tight text-stone-900">
+                        {card.targetLabel ?? '0'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-4 text-xs uppercase tracking-widest text-stone-500">
+                    <span>Atingimento</span>
+                    <span className="font-semibold text-stone-900">
+                      {card.statusEmoji ? `${card.statusEmoji} ` : ''}
+                      {card.attainmentLabel ?? '—'}
+                    </span>
+                  </div>
+                </div>
               </motion.div>
             </FadeIn>
           ))}
@@ -148,6 +189,43 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
               Ver grupos
             </Link>
           </motion.div>
+        </FadeIn>
+
+        <FadeIn delay={0.5}>
+          <details className="mt-10 rounded-2xl border border-stone-200 bg-white p-6">
+            <summary className="cursor-pointer text-xs uppercase tracking-widest text-stone-500">
+              Auditoria de objetivos (semanal)
+            </summary>
+            <div className="mt-4 space-y-4 text-sm text-stone-600">
+              <div className="grid gap-2 md:grid-cols-2">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Campanha</div>
+                  <div className="mt-1 font-mono text-xs">{metaAudit.campaign.startISO}</div>
+                  <div className="mt-1 font-mono text-xs">{metaAudit.campaign.endISO}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Semana corrente</div>
+                  <div className="mt-1 font-mono text-xs">{metaAudit.weekWindow.startISO}</div>
+                  <div className="mt-1 font-mono text-xs">{metaAudit.weekWindow.endISO}</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {metaAudit.byGroup.map((g) => (
+                  <div
+                    key={g.groupId}
+                    className="flex flex-col gap-1 rounded-xl border border-stone-200 bg-stone-50 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="font-serif text-lg text-stone-900">{g.groupName}</div>
+                    <div className="text-xs uppercase tracking-widest text-stone-500">
+                      Objetivo: <span className="font-semibold text-stone-900">{g.target}</span>
+                    </div>
+                    <div className="font-mono text-[11px] text-stone-500">{g.source}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </details>
         </FadeIn>
       </div>
     </section>

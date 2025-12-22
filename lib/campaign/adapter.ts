@@ -32,6 +32,185 @@ function startOfWeek(dt: DateTime, weekStartsOn: 'monday' | 'sunday'): DateTime 
   return dt.minus({ days: diff }).startOf('day');
 }
 
+function endOfDay(dt: DateTime): DateTime {
+  return dt.endOf('day');
+}
+
+function effectiveNow(now: DateTime, campaignStart: DateTime, campaignEnd: DateTime): DateTime | null {
+  if (now < campaignStart) return null;
+  if (now > campaignEnd) return campaignEnd;
+  return now;
+}
+
+function formatWeekLabel(options: { start: DateTime; end: DateTime }): string {
+  const start = options.start.setLocale('pt-BR');
+  const end = options.end.setLocale('pt-BR');
+
+  const startDay = start.toFormat('dd');
+  const endDay = end.toFormat('dd');
+
+  const startMonth = start.toFormat('LLL');
+  const endMonth = end.toFormat('LLL');
+
+  const monthPart = startMonth === endMonth ? startMonth : `${startMonth}–${endMonth}`;
+  return `Semana ${startDay}–${endDay} ${monthPart}`;
+}
+
+function groupStatusFromAttainment(attainmentPct: number): CampaignStatus {
+  if (attainmentPct >= 1) return 'NO_JOGO';
+  if (attainmentPct >= 0.9) return 'EM_DISPUTA';
+  return 'FORA_DO_RITMO';
+}
+
+function buildGroupsWeekly(options: {
+  proposals: ProposalFact[];
+  storeMetrics: StoreMetrics[];
+  tz: string;
+  campaignStart: DateTime;
+  campaignEnd: DateTime;
+  now: DateTime;
+  useFinalized: boolean;
+  weeklyTargetPerStoreByGroup: Record<string, number>;
+  storesPerGroup: Record<string, number>;
+}): Pick<SandboxData['campaign'], 'groupsWeekly' | 'metaAudit'> {
+  const {
+    proposals,
+    storeMetrics,
+    tz,
+    campaignStart,
+    campaignEnd,
+    now,
+    useFinalized,
+    weeklyTargetPerStoreByGroup,
+    storesPerGroup,
+  } = options;
+
+  const nowEff = effectiveNow(now, campaignStart, campaignEnd);
+  const base = nowEff ?? campaignStart;
+
+  const weekStart = startOfWeek(base, 'monday');
+  const weekEnd = endOfDay(weekStart.plus({ days: 6 }));
+
+  const effectiveStart = DateTime.max(weekStart, campaignStart);
+  const effectiveEnd = nowEff ? DateTime.min(weekEnd, campaignEnd, nowEff) : effectiveStart.minus({ milliseconds: 1 });
+
+  const weekLabel = formatWeekLabel({ start: effectiveStart, end: DateTime.min(weekEnd, campaignEnd) });
+
+  const achievedByGroup = new Map<string, number>();
+  if (nowEff) {
+    for (const p of proposals) {
+      const iso = approvalDateISO(p, useFinalized);
+      if (!iso) continue;
+      const dt = DateTime.fromISO(iso, { zone: tz }).startOf('day');
+      if (!dt.isValid) continue;
+
+      if (dt < effectiveStart.startOf('day')) continue;
+      if (dt > effectiveEnd) continue;
+
+      const group = p.group || 'Sem Grupo';
+      achievedByGroup.set(group, (achievedByGroup.get(group) ?? 0) + (p.approved ?? 0));
+    }
+  } else if (storeMetrics.length > 0) {
+    // Semana vazia (antes da campanha): mantemos achieved = 0
+    void storeMetrics;
+  }
+
+  const groups = Object.keys(weeklyTargetPerStoreByGroup);
+
+  const items = groups.map((groupName) => {
+    const perStore = weeklyTargetPerStoreByGroup[groupName] ?? 0;
+    const storeCount = storesPerGroup[groupName] ?? 0;
+    const target = perStore * storeCount;
+    const achieved = achievedByGroup.get(groupName) ?? 0;
+    const attainmentPct = target > 0 ? achieved / target : 0;
+
+    const status = groupStatusFromAttainment(attainmentPct);
+
+    return {
+      groupId: groupName,
+      groupName,
+      achieved,
+      target,
+      attainmentPct,
+      achievedLabel: String(achieved),
+      targetLabel: String(target),
+      attainmentLabel: `${Math.round(attainmentPct * 100)}%`,
+      status,
+    };
+  });
+
+  return {
+    groupsWeekly: {
+      period: 'weekly',
+      weekLabel,
+      window: { startISO: effectiveStart.toISO() ?? '', endISO: effectiveEnd.toISO() ?? '' },
+      items,
+    },
+    metaAudit: {
+      campaign: { startISO: campaignStart.toISO() ?? '', endISO: campaignEnd.toISO() ?? '' },
+      groupsPeriod: 'weekly',
+      weekWindow: {
+        startISO: effectiveStart.toISO() ?? '',
+        endISO: effectiveEnd.toISO() ?? '',
+        weekLabel,
+      },
+      byGroup: groups.map((groupName) => {
+        const perStore = weeklyTargetPerStoreByGroup[groupName] ?? 0;
+        const storeCount = storesPerGroup[groupName] ?? 0;
+        const target = perStore * storeCount;
+        return {
+          groupId: groupName,
+          groupName,
+          target,
+          source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo',
+        };
+      }),
+    },
+  };
+}
+
+function buildMonthlyStores(options: {
+  proposals: ProposalFact[];
+  tz: string;
+  campaignStart: DateTime;
+  campaignEnd: DateTime;
+  now: DateTime;
+  useFinalized: boolean;
+}): { monthEnd: DateTime; stores: Array<{ label: string; value: string }>; monthTotal: number; windowLabel: string } {
+  const { proposals, tz, campaignStart, campaignEnd, now, useFinalized } = options;
+  const nowEff = effectiveNow(now, campaignStart, campaignEnd);
+
+  const monthStart = campaignStart.startOf('day');
+  const monthEnd = nowEff ? nowEff : monthStart.minus({ milliseconds: 1 });
+
+  const totalsByStore = new Map<string, number>();
+  let monthTotal = 0;
+
+  if (nowEff) {
+    for (const p of proposals) {
+      const iso = approvalDateISO(p, useFinalized);
+      if (!iso) continue;
+      const dt = DateTime.fromISO(iso, { zone: tz }).startOf('day');
+      if (!dt.isValid) continue;
+      if (dt < monthStart) continue;
+      if (dt > monthEnd) continue;
+
+      const store = p.store || 'Loja';
+      const approved = p.approved ?? 0;
+      totalsByStore.set(store, (totalsByStore.get(store) ?? 0) + approved);
+      monthTotal += approved;
+    }
+  }
+
+  const stores = [...totalsByStore.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([label, total]) => ({ label, value: String(total) }));
+
+  const label = `${monthStart.setLocale('pt-BR').toFormat('dd/LL')} até ${nowEff ? 'hoje' : 'início'}`;
+
+  return { monthEnd, stores, monthTotal, windowLabel: label };
+}
+
 function aggregateWeeklyGoals(options: {
   proposals: ProposalFact[];
   tz: string;
@@ -164,6 +343,10 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
   const root = asRecord(snapshot);
   const editorialSummary = asRecord(root?.editorialSummary);
 
+  const tzNow = DateTime.now().setZone(cfg.timezone);
+  const campaignStart = DateTime.fromISO(cfg.campaignStartISO, { zone: cfg.timezone }).startOf('day');
+  const campaignEnd = DateTime.fromISO(cfg.campaignEndISO, { zone: cfg.timezone }).endOf('day');
+
   if (!root || !editorialSummary) {
     const storesPerGroup = countStoresByGroup(cfg);
     const weeklyGoalsBase = aggregateWeeklyGoals({
@@ -180,6 +363,18 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
     const timeline = aggregateEvolution([], {
       tz: cfg.timezone,
       useFinalized: cfg.useFinalizedDateForApprovals,
+    });
+
+    const groupsWeekly = buildGroupsWeekly({
+      proposals: [],
+      storeMetrics: [],
+      tz: cfg.timezone,
+      campaignStart,
+      campaignEnd,
+      now: tzNow,
+      useFinalized: cfg.useFinalizedDateForApprovals,
+      weeklyTargetPerStoreByGroup: cfg.weeklyTargetPerStoreByGroup,
+      storesPerGroup,
     });
 
     return {
@@ -207,6 +402,7 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
         status: 'EM_DISPUTA',
         statusLabel: 'EM DISPUTA',
         nextAction: nextActionFromStatus('EM_DISPUTA'),
+        ...groupsWeekly,
       },
       reengagement: reengagementFromStatus('EM_DISPUTA'),
       kpis: [
@@ -215,7 +411,7 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
         { label: 'Taxa de aprovação', value: '0%' },
         { label: 'Lojas ativas', value: String(Object.values(storesPerGroup).reduce((sum, n) => sum + n, 0)) },
       ],
-      accumulated: { monthTotal: 0, label: 'Produção acumulada no mês' },
+      accumulated: { monthTotal: 0, label: 'Produção acumulada no mês', windowLabel: '01/12 até hoje', stores: [] },
     };
   }
 
@@ -261,6 +457,18 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
 
   const campaignStatus = normalizeStatus(safeString(heroObj?.statusLabel));
 
+  const groupsWeekly = buildGroupsWeekly({
+    proposals,
+    storeMetrics,
+    tz: cfg.timezone,
+    campaignStart,
+    campaignEnd,
+    now: tzNow,
+    useFinalized: cfg.useFinalizedDateForApprovals,
+    weeklyTargetPerStoreByGroup: cfg.weeklyTargetPerStoreByGroup,
+    storesPerGroup,
+  });
+
   const dayKeyYesterday = safeString(pulseObj?.dayKeyYesterday, '');
   const dayLabel = (() => {
     if (!dayKeyYesterday) return 'Ontem';
@@ -297,6 +505,15 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
     fallback: fallbackHeroSubheadline,
   });
 
+  const monthly = buildMonthlyStores({
+    proposals,
+    tz: cfg.timezone,
+    campaignStart,
+    campaignEnd,
+    now: tzNow,
+    useFinalized: cfg.useFinalizedDateForApprovals,
+  });
+
   return {
     hero: {
       headline: safeString(heroObj?.headline, cfg.campaignName),
@@ -324,6 +541,7 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
       status: campaignStatus,
       statusLabel: safeString(heroObj?.statusLabel, "EM DISPUTA"),
       nextAction: nextActionFromStatus(campaignStatus),
+      ...groupsWeekly,
     },
     reengagement: reengagementFromStatus(campaignStatus),
     kpis: [
@@ -333,8 +551,10 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
         { label: "Lojas ativas", value: String(storeMetrics.length) }
     ],
     accumulated: {
-        monthTotal: safeNumber(totalsObj?.approved, 0),
-        label: "Produção acumulada no mês"
+        monthTotal: monthly.monthTotal > 0 ? monthly.monthTotal : safeNumber(totalsObj?.approved, 0),
+        label: "Produção acumulada no mês",
+        windowLabel: monthly.windowLabel,
+        stores: monthly.stores,
     }
   };
 }
