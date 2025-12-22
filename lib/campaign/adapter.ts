@@ -6,7 +6,6 @@ import { countStoresByGroup, getCampaignConfig } from '@/lib/campaign/config';
 
 // Helper types matching the Mock DB structure
 type GroupGoal = { group: string; actual: number; target: number };
-type SeriesPoint = { day: string; value: number };
 
 function asRecord(input: unknown): UnknownRecord | null {
   return input && typeof input === 'object' ? (input as UnknownRecord) : null;
@@ -248,28 +247,57 @@ function aggregateWeeklyGoals(options: {
   });
 }
 
-function aggregateEvolution(proposals: ProposalFact[], options: { tz: string; useFinalized: boolean }): SeriesPoint[] {
-  // Last 7 days (approved by day)
-  const today = DateTime.now().setZone(options.tz).startOf('day');
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = today.minus({ days: 6 - i });
-    return {
-      iso: d.toISODate() as string,
-      label: d.toFormat('dd/MM'),
-    };
-  });
+function buildMonthDailyTrend(options: {
+  proposals: ProposalFact[];
+  tz: string;
+  campaignStart: DateTime;
+  campaignEnd: DateTime;
+  now: DateTime;
+  useFinalized: boolean;
+}): SandboxData['movement']['trend'] {
+  const { proposals, tz, campaignStart, campaignEnd, now, useFinalized } = options;
+  const nowEff = effectiveNow(now, campaignStart, campaignEnd);
 
-  return days.map((d) => {
-    const approved = proposals.reduce((sum, p) => {
-      const iso = approvalDateISO(p, options.useFinalized);
-      if (iso !== d.iso) return sum;
-      return sum + (p.approved ?? 0);
-    }, 0);
-    return {
-      day: d.label,
-      value: approved
-    };
-  });
+  const monthStart = DateTime.max(campaignStart.startOf('month'), campaignStart.startOf('day'));
+  const to = nowEff ? nowEff.startOf('day') : monthStart.minus({ days: 1 });
+
+  const approvedByDay = new Map<string, number>();
+  if (nowEff) {
+    for (const p of proposals) {
+      const iso = approvalDateISO(p, useFinalized);
+      if (!iso) continue;
+      const dt = DateTime.fromISO(iso, { zone: tz }).startOf('day');
+      if (!dt.isValid) continue;
+      if (dt < monthStart) continue;
+      if (dt > nowEff) continue;
+
+      const dayKey = dt.toISODate() ?? '';
+      if (!dayKey) continue;
+      approvedByDay.set(dayKey, (approvedByDay.get(dayKey) ?? 0) + (p.approved ?? 0));
+    }
+  }
+
+  const points: Array<{ dateISO: string; day: string; value: number }> = [];
+  let cursor = monthStart;
+  while (cursor <= to) {
+    const dateISO = cursor.toISODate() ?? '';
+    points.push({
+      dateISO,
+      day: cursor.toFormat('dd'),
+      value: approvedByDay.get(dateISO) ?? 0,
+    });
+    cursor = cursor.plus({ days: 1 });
+  }
+
+  const label = `${monthStart.setLocale('pt-BR').toFormat('dd/LL')} até ${nowEff ? 'hoje' : 'início'}`;
+
+  return {
+    range: 'month',
+    fromISO: monthStart.toISO() ?? '',
+    toISO: (nowEff ? nowEff.endOf('day') : campaignStart.minus({ milliseconds: 1 })).toISO() ?? '',
+    label,
+    points,
+  };
 }
 
 function normalizeStatus(input: string | null | undefined): CampaignStatus {
@@ -360,8 +388,12 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
 
     const weeklyGoals = weeklyGoalsBase.map((g) => ({ ...g, onTrack: false }));
 
-    const timeline = aggregateEvolution([], {
+    const trend = buildMonthDailyTrend({
+      proposals: [],
       tz: cfg.timezone,
+      campaignStart,
+      campaignEnd,
+      now: tzNow,
       useFinalized: cfg.useFinalizedDateForApprovals,
     });
 
@@ -394,8 +426,12 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
           { label: 'Sem registro', value: '—' },
           { label: 'Sem registro', value: '—' },
         ],
-        storeList: [],
-        timeline,
+        storeColumns: [
+          { title: 'Lojas 04–09', items: [] },
+          { title: 'Lojas 10–15', items: [] },
+          { title: 'Lojas 16–21', items: [] },
+        ],
+        trend,
       },
       campaign: {
         groupsRadial: weeklyGoalsBase.map((g) => ({ group: g.group, score: 0 })),
@@ -436,7 +472,14 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
   });
 
   // 2. Evolution (Timeline)
-  const timeline = aggregateEvolution(proposals || [], { tz: cfg.timezone, useFinalized: cfg.useFinalizedDateForApprovals });
+  const trend = buildMonthDailyTrend({
+    proposals,
+    tz: cfg.timezone,
+    campaignStart,
+    campaignEnd,
+    now: tzNow,
+    useFinalized: cfg.useFinalizedDateForApprovals,
+  });
 
   // 3. Groups (Radial)
   // Re-use aggregation or specific map
@@ -476,8 +519,13 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
     return dt.isValid ? dt.toFormat('dd/MM') : 'Ontem';
   })();
 
-  const byYesterday = [...storeMetrics].sort((a, b) => b.approvedYesterday - a.approvedYesterday);
-  const podiumPicked = byYesterday.slice(0, 3).map((row) => ({
+  const rankedStores = [...storeMetrics].sort((a, b) => {
+    const diff = b.approvedYesterday - a.approvedYesterday;
+    if (diff !== 0) return diff;
+    return a.store.localeCompare(b.store);
+  });
+
+  const podiumPicked = rankedStores.slice(0, 3).map((row) => ({
     label: row.store,
     value: `${row.approvedYesterday} aprov.`,
   }));
@@ -487,14 +535,16 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
     podiumPicked[2] ?? { label: '—', value: '—' },
   ];
 
-  const podiumLabels = new Set(podiumPicked.map((p) => p.label));
-  const storeList = storeMetrics
-    .filter((row) => !podiumLabels.has(row.store))
-    .sort((a, b) => a.store.localeCompare(b.store))
-    .map((row) => ({
-      label: row.store,
-      value: `${row.approvedYesterday} aprov.`,
-    }));
+  const remainder = rankedStores.slice(3).map((row) => ({
+    label: row.store,
+    value: `${row.approvedYesterday} aprov.`,
+  }));
+
+  const storeColumns: SandboxData['movement']['storeColumns'] = [
+    { title: 'Lojas 04–09', items: remainder.slice(0, 6) },
+    { title: 'Lojas 10–15', items: remainder.slice(6, 12) },
+    { title: 'Lojas 16–21', items: remainder.slice(12, 18) },
+  ];
 
   const explicitHeroSubheadline = safeString(heroObj?.subheadline, '');
   const fallbackHeroSubheadline = safeString(cfg.taglinePt, 'Leitura editorial do ritmo diário.');
@@ -533,8 +583,8 @@ export function adaptSnapshotToCampaign(snapshot: unknown): SandboxData {
       dayLabel,
       yesterdayResult,
       podium,
-      storeList,
-      timeline
+      storeColumns,
+      trend
     },
     campaign: {
       groupsRadial,

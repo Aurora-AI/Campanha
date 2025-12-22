@@ -22,8 +22,17 @@ export interface SandboxData {
     dayLabel: string;
     yesterdayResult: { value: number; label: string; deltaText?: string };
     podium: Array<{ label: string; value: string }>;
-    storeList: Array<{ label: string; value: string }>;
-    timeline: { day: string; value: number }[];
+    storeColumns: Array<{
+      title: string;
+      items: Array<{ label: string; value: string }>;
+    }>;
+    trend: {
+      range: 'month';
+      fromISO: string;
+      toISO: string;
+      label: string;
+      points: Array<{ dateISO: string; day: string; value: number }>;
+    };
   };
   campaign: {
     groupsRadial: { group: string; score: number }[]; // Score 0-100
@@ -87,18 +96,37 @@ export const MOCK_DB: SandboxData = {
       { label: "Loja 02", value: "10 aprov." },
       { label: "Loja 03", value: "9 aprov." },
     ],
-    storeList: [
-      { label: "Loja 04", value: "6 aprov." },
-      { label: "Loja 05", value: "5 aprov." },
-      { label: "Loja 06", value: "3 aprov." }
+    storeColumns: [
+      {
+        title: "Lojas 04–09",
+        items: [
+          { label: "Loja 04", value: "6 aprov." },
+          { label: "Loja 05", value: "5 aprov." },
+          { label: "Loja 06", value: "3 aprov." },
+        ],
+      },
+      {
+        title: "Lojas 10–15",
+        items: [],
+      },
+      {
+        title: "Lojas 16–21",
+        items: [],
+      },
     ],
-    timeline: [
-      { day: "Seg", value: 65 },
-      { day: "Ter", value: 78 },
-      { day: "Qua", value: 98 },
-      { day: "Qui", value: 85 },
-      { day: "Sex", value: 110 }
-    ]
+    trend: {
+      range: "month",
+      fromISO: "2025-12-01T00:00:00.000-03:00",
+      toISO: "2025-12-12T23:59:59.999-03:00",
+      label: "01/12 até hoje",
+      points: [
+        { dateISO: "2025-12-01", day: "01", value: 65 },
+        { dateISO: "2025-12-02", day: "02", value: 78 },
+        { dateISO: "2025-12-03", day: "03", value: 98 },
+        { dateISO: "2025-12-04", day: "04", value: 85 },
+        { dateISO: "2025-12-05", day: "05", value: 110 },
+      ],
+    },
   },
   campaign: {
     groupsRadial: [

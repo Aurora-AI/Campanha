@@ -3,14 +3,14 @@
 import EvolutionChart, { EvolutionPoint } from '@/components/EvolutionChart';
 import type { SandboxData } from '@/lib/campaign/mock';
 import PodiumHighlight from '@/components/campaign/PodiumHighlight';
-import StoreList from '@/components/campaign/StoreList';
+import StoreRankingColumns from '@/components/campaign/StoreRankingColumns';
 
 type SectionYesterdayProps = {
   data: SandboxData['movement'];
 };
 
 export default function SectionYesterday({ data }: SectionYesterdayProps) {
-  const { title, subtitle, dayLabel, yesterdayResult, podium, storeList, timeline } = data;
+  const { title, subtitle, dayLabel, yesterdayResult, podium, storeColumns, trend } = data;
   /**
    * FIX DEFINITIVO (Recharts width/height -1):
    * - o grid pai precisa permitir shrink: min-w-0
@@ -25,7 +25,16 @@ export default function SectionYesterday({ data }: SectionYesterdayProps) {
             <h2 className="font-serif text-4xl tracking-tight md:text-5xl">{title}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-black/60">{subtitle}</p>
           </div>
-          <div className="text-[10px] uppercase tracking-[0.28em] text-black/40">Referência: {dayLabel}</div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-[0.28em] text-black/40">Referência: {dayLabel}</div>
+            <div className="mt-2 text-xs uppercase tracking-widest text-black/60">
+              {yesterdayResult.label}:{' '}
+              <span className="font-semibold text-black">{yesterdayResult.value}</span>
+            </div>
+            {yesterdayResult.deltaText ? (
+              <div className="mt-1 text-xs tracking-wide text-black/50">{yesterdayResult.deltaText}</div>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-10">
@@ -33,29 +42,20 @@ export default function SectionYesterday({ data }: SectionYesterdayProps) {
         </div>
 
         <div className="mt-8 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="min-w-0 space-y-6 lg:col-span-4">
-            <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-              <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">Resumo</div>
-              <div className="mt-4 flex items-end justify-between gap-4">
-                <div className="text-sm text-black/55">{yesterdayResult.label}</div>
-                <div className="font-serif text-5xl tracking-tight text-black">{yesterdayResult.value}</div>
-              </div>
-              {yesterdayResult.deltaText ? (
-                <div className="mt-3 text-xs tracking-wide text-black/55">{yesterdayResult.deltaText}</div>
-              ) : null}
-            </div>
-
-            <StoreList items={storeList} />
+          <div className="min-w-0 space-y-6 lg:col-span-5">
+            <StoreRankingColumns columns={storeColumns} />
           </div>
 
-          <div className="min-w-0 lg:col-span-8">
+          <div className="min-w-0 lg:col-span-7">
             <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-baseline justify-between">
-                <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">Evolução</div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-black/35">Últimos 7 dias</div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">
+                  Evolução — Produção diária do mês
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-black/35">{trend.label}</div>
               </div>
 
-              <EvolutionChart data={timeline as EvolutionPoint[] | undefined} variant="bi" />
+              <EvolutionChart data={trend.points as EvolutionPoint[] | undefined} variant="bi" />
             </div>
           </div>
         </div>

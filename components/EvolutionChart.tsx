@@ -36,6 +36,7 @@ export default function EvolutionChart({
   data = FALLBACK_DATA,
   variant = 'bi',
 }: EvolutionChartProps) {
+  const denseInterval = data.length > 20 ? 4 : 'preserveStartEnd';
   /**
    * FIX DEFINITIVO (Recharts width/height -1):
    * - ResponsiveContainer precisa de um pai com ALTURA real (>0)
@@ -50,7 +51,7 @@ export default function EvolutionChart({
             dataKey="day"
             tickLine={false}
             axisLine={false}
-            interval="preserveStartEnd"
+            interval={denseInterval}
           />
           <YAxis tickLine={false} axisLine={false} width={28} />
           <Tooltip cursor={{ fill: 'transparent' }} />
