@@ -7,6 +7,7 @@ export type GroupRadialInput = {
   targetLabel?: string;
   attainmentLabel?: string;
   status?: CampaignStatus;
+  statusEmoji?: '🟢' | '🟡' | '🔴';
 };
 
 export type GroupsPulseVM = {
@@ -15,12 +16,6 @@ export type GroupsPulseVM = {
   nextAction: string;
   weekLabel?: string;
   window?: { startISO: string; endISO: string };
-  metaAudit?: {
-    campaign: { startISO: string; endISO: string };
-    groupsPeriod: 'weekly';
-    weekWindow: { startISO: string; endISO: string; weekLabel: string };
-    byGroup: Array<{ groupId: string; groupName: string; target: number; source: string }>;
-  };
   cards: Array<{
     key: string;
     title: string;
@@ -88,7 +83,6 @@ export function buildGroupsPulseVM(args: {
   nextAction: string;
   weekLabel?: string;
   window?: { startISO: string; endISO: string };
-  metaAudit?: GroupsPulseVM['metaAudit'];
   size?: number;
 }): GroupsPulseVM {
   const size = args.size ?? 120;
@@ -111,7 +105,7 @@ export function buildGroupsPulseVM(args: {
       achievedLabel: g.achievedLabel,
       targetLabel: g.targetLabel,
       attainmentLabel: g.attainmentLabel,
-      statusEmoji: statusToEmoji(g.status),
+      statusEmoji: g.statusEmoji ?? statusToEmoji(g.status),
       thermometer: {
         size,
         radius,
@@ -133,7 +127,6 @@ export function buildGroupsPulseVM(args: {
     nextAction: args.nextAction,
     weekLabel: args.weekLabel,
     window: args.window,
-    metaAudit: args.metaAudit,
     cards,
   };
 }

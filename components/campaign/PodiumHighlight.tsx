@@ -1,5 +1,7 @@
 'use client';
 
+import { Medal, Trophy } from 'lucide-react';
+
 export type PodiumHighlightItem = {
   label: string;
   value: string;
@@ -12,7 +14,6 @@ export default function PodiumHighlight({
   title?: string;
   items: PodiumHighlightItem[];
 }) {
-  const icons = ['🏆', '🥈', '🥉'] as const;
   const slots: PodiumHighlightItem[] = [
     items[0] ?? { label: '—', value: '—' },
     items[1] ?? { label: '—', value: '—' },
@@ -34,7 +35,17 @@ export default function PodiumHighlight({
           >
             <div className="flex items-baseline justify-between gap-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-lg leading-none">{icons[idx] ?? ''}</span>
+                <span className="inline-flex items-center justify-center">
+                  {idx === 0 ? (
+                    <Trophy aria-label="1º lugar" role="img" className="h-5 w-5 text-black/80" />
+                  ) : (
+                    <Medal
+                      aria-label={idx === 1 ? '2º lugar' : '3º lugar'}
+                      role="img"
+                      className={['h-4 w-4 text-black/80', idx === 1 ? 'opacity-90' : 'opacity-75'].join(' ')}
+                    />
+                  )}
+                </span>
                 <span className="text-xs uppercase tracking-widest text-black/55">{item.label}</span>
               </div>
             </div>

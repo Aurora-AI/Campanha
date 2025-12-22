@@ -2,6 +2,7 @@ export type CampaignStatus = 'NO_JOGO' | 'EM_DISPUTA' | 'FORA_DO_RITMO';
 
 export const NAV_LINKS = [
   { label: "Dia", href: "#dia" },
+  { label: "Produção", href: "#producao" },
   { label: "Campanha", href: "#campanha" },
   { label: "Ação", href: "#acao" },
   { label: "KPIs", href: "#kpis" },
@@ -26,53 +27,67 @@ export interface SandboxData {
       title: string;
       items: Array<{ label: string; value: string }>;
     }>;
-    trend: {
-      range: 'month';
-      fromISO: string;
-      toISO: string;
-      label: string;
-      points: Array<{ dateISO: string; day: string; value: number }>;
-    };
   };
   campaign: {
     groupsRadial: { group: string; score: number }[]; // Score 0-100
     status: CampaignStatus;
     statusLabel: string;
     nextAction: string;
-    groupsWeekly: {
-      period: 'weekly';
-      weekLabel: string;
-      window: { startISO: string; endISO: string };
-      items: Array<{
-        groupId: string;
-        groupName: string;
-        achieved: number;
-        target: number;
-        attainmentPct: number; // 0..1
-        achievedLabel: string;
-        targetLabel: string;
-        attainmentLabel: string; // e.g. "78%"
-        status: CampaignStatus;
-      }>;
+  };
+  groups: {
+    period: 'weekly';
+    weekLabel: string;
+    weekStartISO: string;
+    weekEndISO: string;
+    items: Array<{
+      groupId: string;
+      groupName: string;
+      achieved: number;
+      target: number;
+      attainmentPct: number;
+      status: '🟢' | '🟡' | '🔴';
+    }>;
+  };
+  metaAudit: {
+    groupsPeriod: 'weekly';
+    weekStartISO: string;
+    weekEndISO: string;
+    targets: {
+      byGroup: Array<{ groupId: string; target: number; source: string }>;
+      byStore: Array<{ storeId: string; storeName: string; monthlyTarget?: number; source: string }>;
     };
-    metaAudit: {
-      campaign: { startISO: string; endISO: string };
-      groupsPeriod: 'weekly';
-      weekWindow: { startISO: string; endISO: string; weekLabel: string };
-      byGroup: Array<{ groupId: string; groupName: string; target: number; source: string }>;
+  };
+  storesMonthly: {
+    monthLabel: string;
+    fromISO: string;
+    toISO: string;
+    items: Array<{ storeId: string; storeName: string; achieved: number }>;
+    totalAchieved: number;
+  };
+  trendComparative: {
+    mode: 'weekday_vs_previous_month';
+    current: { year: number; month: number; fromISO: string; toISO: string };
+    baseline: { year: number; month: number; fromISO: string; toISO: string };
+    metrics: {
+      proposals: Array<{ dateISO: string; currentValue: number; baselineValue: number }>;
+      approvals: Array<{ dateISO: string; currentValue: number; baselineValue: number }>;
     };
+    summary?: {
+      proposals?: { currentTotal: number; baselineTotal: number; deltaPct?: number };
+      approvals?: { currentTotal: number; baselineTotal: number; deltaPct?: number };
+      approvalRate?: { currentPct: number; baselinePct: number; deltaPp?: number };
+    };
+  };
+  dataCoverage: {
+    availableMonths: Array<{ year: number; month: number; source: string; uploadedAtISO: string }>;
+    currentMonthLoaded: { year: number; month: number };
+    previousMonthLoaded?: { year: number; month: number };
   };
   reengagement: {
     title: string;
     subtitle: string;
   };
   kpis: { label: string; value: string; delta?: string }[];
-  accumulated: {
-    monthTotal: number;
-    label: string;
-    windowLabel: string;
-    stores: Array<{ label: string; value: string }>;
-  };
 }
 
 export const MOCK_DB: SandboxData = {
@@ -114,19 +129,6 @@ export const MOCK_DB: SandboxData = {
         items: [],
       },
     ],
-    trend: {
-      range: "month",
-      fromISO: "2025-12-01T00:00:00.000-03:00",
-      toISO: "2025-12-12T23:59:59.999-03:00",
-      label: "01/12 até hoje",
-      points: [
-        { dateISO: "2025-12-01", day: "01", value: 65 },
-        { dateISO: "2025-12-02", day: "02", value: 78 },
-        { dateISO: "2025-12-03", day: "03", value: 98 },
-        { dateISO: "2025-12-04", day: "04", value: 85 },
-        { dateISO: "2025-12-05", day: "05", value: 110 },
-      ],
-    },
   },
   campaign: {
     groupsRadial: [
@@ -137,60 +139,71 @@ export const MOCK_DB: SandboxData = {
     status: 'EM_DISPUTA',
     statusLabel: "EM DISPUTA",
     nextAction: "Ajustar o foco hoje: destravar pendências e retomar contatos quentes.",
-    groupsWeekly: {
-      period: 'weekly',
-      weekLabel: 'Semana 01–07 Dez',
-      window: { startISO: '2025-12-01T00:00:00.000-03:00', endISO: '2025-12-07T23:59:59.999-03:00' },
-      items: [
-        {
-          groupId: 'Grupo A',
-          groupName: 'Grupo A',
-          achieved: 85,
-          target: 100,
-          attainmentPct: 0.85,
-          achievedLabel: '85',
-          targetLabel: '100',
-          attainmentLabel: '85%',
-          status: 'EM_DISPUTA',
-        },
-        {
-          groupId: 'Grupo B',
-          groupName: 'Grupo B',
-          achieved: 52,
-          target: 60,
-          attainmentPct: 0.866,
-          achievedLabel: '52',
-          targetLabel: '60',
-          attainmentLabel: '87%',
-          status: 'EM_DISPUTA',
-        },
-        {
-          groupId: 'Grupo C',
-          groupName: 'Grupo C',
-          achieved: 48,
-          target: 66,
-          attainmentPct: 0.727,
-          achievedLabel: '48',
-          targetLabel: '66',
-          attainmentLabel: '73%',
-          status: 'FORA_DO_RITMO',
-        },
-      ],
-    },
-    metaAudit: {
-      campaign: { startISO: '2025-12-01T00:00:00.000-03:00', endISO: '2025-12-31T23:59:59.999-03:00' },
-      groupsPeriod: 'weekly',
-      weekWindow: {
-        startISO: '2025-12-01T00:00:00.000-03:00',
-        endISO: '2025-12-07T23:59:59.999-03:00',
-        weekLabel: 'Semana 01–07 Dez',
-      },
+  },
+  groups: {
+    period: 'weekly',
+    weekLabel: 'Semana 01–07 Dez',
+    weekStartISO: '2025-12-01T00:00:00.000-03:00',
+    weekEndISO: '2025-12-07T23:59:59.999-03:00',
+    items: [
+      { groupId: 'Grupo A', groupName: 'Grupo A', achieved: 85, target: 100, attainmentPct: 0.85, status: '🟡' },
+      { groupId: 'Grupo B', groupName: 'Grupo B', achieved: 52, target: 60, attainmentPct: 0.866, status: '🟡' },
+      { groupId: 'Grupo C', groupName: 'Grupo C', achieved: 48, target: 66, attainmentPct: 0.727, status: '🔴' },
+    ],
+  },
+  metaAudit: {
+    groupsPeriod: 'weekly',
+    weekStartISO: '2025-12-01T00:00:00.000-03:00',
+    weekEndISO: '2025-12-07T23:59:59.999-03:00',
+    targets: {
       byGroup: [
-        { groupId: 'Grupo A', groupName: 'Grupo A', target: 100, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
-        { groupId: 'Grupo B', groupName: 'Grupo B', target: 60, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
-        { groupId: 'Grupo C', groupName: 'Grupo C', target: 66, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+        { groupId: 'Grupo A', target: 100, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+        { groupId: 'Grupo B', target: 60, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+        { groupId: 'Grupo C', target: 66, source: 'config/campaign.config.json:weeklyTargetPerStoreByGroup × lojas do grupo' },
+      ],
+      byStore: [
+        { storeId: 'LOJA 01', storeName: 'Loja 01', source: 'config/campaign.config.json:storeByCnpjDigits' },
       ],
     },
+  },
+  storesMonthly: {
+    monthLabel: 'Dez/2025',
+    fromISO: '2025-12-01T00:00:00.000-03:00',
+    toISO: '2025-12-12T23:59:59.999-03:00',
+    items: [
+      { storeId: 'LOJA 01', storeName: 'Loja 01', achieved: 112 },
+      { storeId: 'LOJA 02', storeName: 'Loja 02', achieved: 98 },
+      { storeId: 'LOJA 03', storeName: 'Loja 03', achieved: 94 },
+    ],
+    totalAchieved: 304,
+  },
+  trendComparative: {
+    mode: 'weekday_vs_previous_month',
+    current: { year: 2025, month: 12, fromISO: '2025-12-01T00:00:00.000-03:00', toISO: '2025-12-12T23:59:59.999-03:00' },
+    baseline: { year: 2025, month: 11, fromISO: '2025-11-01T00:00:00.000-03:00', toISO: '2025-11-30T23:59:59.999-03:00' },
+    metrics: {
+      proposals: [
+        { dateISO: '2025-12-01', currentValue: 120, baselineValue: 95 },
+        { dateISO: '2025-12-02', currentValue: 130, baselineValue: 110 },
+      ],
+      approvals: [
+        { dateISO: '2025-12-01', currentValue: 65, baselineValue: 58 },
+        { dateISO: '2025-12-02', currentValue: 78, baselineValue: 70 },
+      ],
+    },
+    summary: {
+      proposals: { currentTotal: 250, baselineTotal: 205, deltaPct: 0.2195 },
+      approvals: { currentTotal: 143, baselineTotal: 128, deltaPct: 0.1172 },
+      approvalRate: { currentPct: 0.572, baselinePct: 0.624, deltaPp: -5.2 },
+    },
+  },
+  dataCoverage: {
+    availableMonths: [
+      { year: 2025, month: 11, source: 'admin', uploadedAtISO: '2025-12-01T12:00:00.000Z' },
+      { year: 2025, month: 12, source: 'admin', uploadedAtISO: '2025-12-12T12:00:00.000Z' },
+    ],
+    currentMonthLoaded: { year: 2025, month: 12 },
+    previousMonthLoaded: { year: 2025, month: 11 },
   },
   reengagement: {
     title: "Ruptura de foco",
@@ -201,17 +214,7 @@ export const MOCK_DB: SandboxData = {
     { label: "Digitados (total)", value: "3300", delta: "+31" },
     { label: "Taxa de aprovação", value: "24%", delta: "+1pp" },
     { label: "Lojas ativas", value: "21" }
-  ],
-  accumulated: {
-    monthTotal: 1250,
-    label: "Produção acumulada no mês",
-    windowLabel: '01/12 até hoje',
-    stores: [
-      { label: 'Loja 01', value: '112' },
-      { label: 'Loja 02', value: '98' },
-      { label: 'Loja 03', value: '94' },
-    ],
-  }
+  ]
 };
 
 // Legacy exports for backward compatibility during transition if needed,

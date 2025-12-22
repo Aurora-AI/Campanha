@@ -10,7 +10,7 @@ type HeroProps = {
 };
 
 export default function Hero({ data }: HeroProps) {
-  const constraintsRef = useRef(null);
+  const constraintsRef = useRef<HTMLElement | null>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
   const { weeklyGoals, yesterdayApproved, headline, subheadline } = data;
 
@@ -26,28 +26,89 @@ export default function Hero({ data }: HeroProps) {
   };
 
   useEffect(() => {
+    const container = constraintsRef.current;
     const media = mediaRef.current;
-    if (!media) return;
+    if (!container || !media) return;
 
-    let raf = 0;
-    const maxOffset = 120;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (reduce.matches) return;
+
+    const pointerFine = window.matchMedia('(pointer: fine)').matches;
+
+    const maxScrollOffset = 120;
+    const maxTranslate = 10;
+    const maxRotate = 1.5;
+    const easing = 0.12;
+
+    const state = {
+      raf: 0 as number,
+      scrollY: 0,
+      targetX: 0,
+      targetY: 0,
+      targetR: 0,
+      curX: 0,
+      curY: 0,
+      curR: 0,
+    };
+
+    const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+    const lerp = (from: number, to: number) => from + (to - from) * easing;
+
+    const apply = () => {
+      state.curX = lerp(state.curX, state.targetX);
+      state.curY = lerp(state.curY, state.targetY);
+      state.curR = lerp(state.curR, state.targetR);
+
+      const y = state.scrollY + state.curY;
+      media.style.transform = `translate3d(${state.curX.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotateZ(${state.curR.toFixed(2)}deg)`;
+    };
+
+    const schedule = () => {
+      if (state.raf) return;
+      state.raf = window.requestAnimationFrame(() => {
+        state.raf = 0;
+        apply();
+      });
+    };
 
     const onScroll = () => {
-      if (raf) return;
-      raf = window.requestAnimationFrame(() => {
-        raf = 0;
-        let offset = window.scrollY * 0.2;
-        if (offset > maxOffset) offset = maxOffset;
-        if (offset < -maxOffset) offset = -maxOffset;
-        media.style.transform = `translate3d(0, ${offset}px, 0)`;
-      });
+      state.scrollY = clamp(window.scrollY * 0.2, -maxScrollOffset, maxScrollOffset);
+      schedule();
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (!pointerFine) return;
+      const rect = container.getBoundingClientRect();
+      const x = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0.5;
+      const y = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0.5;
+      const nx = clamp(x * 2 - 1, -1, 1);
+      const ny = clamp(y * 2 - 1, -1, 1);
+      state.targetX = nx * maxTranslate;
+      state.targetY = ny * maxTranslate;
+      state.targetR = nx * maxRotate;
+      schedule();
+    };
+
+    const onLeave = () => {
+      state.targetX = 0;
+      state.targetY = 0;
+      state.targetR = 0;
+      schedule();
     };
 
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
+    if (pointerFine) {
+      container.addEventListener('mousemove', onMove, { passive: true });
+      container.addEventListener('mouseleave', onLeave, { passive: true });
+    }
     return () => {
       window.removeEventListener('scroll', onScroll);
-      if (raf) window.cancelAnimationFrame(raf);
+      if (pointerFine) {
+        container.removeEventListener('mousemove', onMove);
+        container.removeEventListener('mouseleave', onLeave);
+      }
+      if (state.raf) window.cancelAnimationFrame(state.raf);
     };
   }, []);
 
@@ -57,7 +118,7 @@ export default function Hero({ data }: HeroProps) {
       className="relative isolate flex w-full min-h-[80svh] items-center justify-center overflow-hidden bg-white"
     >
       {/* HeroMedia - full-bleed */}
-      <div ref={mediaRef} className="absolute inset-0 z-0 pointer-events-none will-change-transform">
+      <div ref={mediaRef} className="absolute inset-0 z-0 pointer-events-none will-change-transform transform-gpu">
         <Image
           src="/campaign/hero.png"
           alt="Hero background"
@@ -118,7 +179,7 @@ export default function Hero({ data }: HeroProps) {
            drag
            dragConstraints={constraintsRef}
            dragSnapToOrigin
-           className="absolute left-[14%] top-[22%] -translate-y-6 w-auto bg-white border border-stone-200 p-6 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
+           className="absolute left-[14%] top-[20%] -translate-y-10 lg:-translate-y-14 w-auto bg-white border border-stone-200 p-6 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
            whileHover={{ rotate: -2, scale: 1.05 }}
            initial={{ opacity: 0, x: -50 }}
            animate={{ opacity: 1, x: 0 }}
@@ -142,7 +203,7 @@ export default function Hero({ data }: HeroProps) {
            drag
            dragConstraints={constraintsRef}
            dragSnapToOrigin
-           className="absolute bottom-[14%] right-[14%] translate-y-6 w-40 h-40 rounded-full bg-stone-900 text-white flex flex-col items-center justify-center p-4 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
+           className="absolute bottom-[14%] right-[14%] translate-y-10 lg:translate-y-12 w-40 h-40 rounded-full bg-stone-900 text-white flex flex-col items-center justify-center p-4 pointer-events-auto cursor-grab active:cursor-grabbing shadow-xl"
            whileHover={{ scale: 1.1, rotate: 5 }}
            initial={{ opacity: 0, y: 50 }}
            animate={{ opacity: 1, y: 0 }}

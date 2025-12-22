@@ -67,21 +67,23 @@ function RadialThermometer({
 }
 
 type SectionGroupsProps = {
-  data: typeof MOCK_DB.campaign;
+  campaign: typeof MOCK_DB.campaign;
+  groups: typeof MOCK_DB.groups;
+  metaAudit: typeof MOCK_DB.metaAudit;
 };
 
-export default function SectionGroups({ data }: SectionGroupsProps) {
-  const { groupsRadial, status, statusLabel, nextAction, groupsWeekly, metaAudit } = data;
+export default function SectionGroups({ campaign, groups, metaAudit }: SectionGroupsProps) {
+  const { groupsRadial, status, statusLabel, nextAction } = campaign;
 
-  const weeklyByGroup = new Map(groupsWeekly.items.map((g) => [g.groupName, g]));
+  const weeklyByGroup = new Map(groups.items.map((g) => [g.groupName, g]));
   const enrichedRadial = groupsRadial.map((g) => {
     const weekly = weeklyByGroup.get(g.group);
     return {
       ...g,
-      achievedLabel: weekly?.achievedLabel,
-      targetLabel: weekly?.targetLabel,
-      attainmentLabel: weekly?.attainmentLabel,
-      status: weekly?.status,
+      achievedLabel: weekly ? String(weekly.achieved) : undefined,
+      targetLabel: weekly ? String(weekly.target) : undefined,
+      attainmentLabel: weekly ? `${Math.round(weekly.attainmentPct * 100)}%` : undefined,
+      statusEmoji: weekly?.status,
     };
   });
 
@@ -90,9 +92,8 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
     status,
     statusLabel,
     nextAction,
-    weekLabel: groupsWeekly.weekLabel,
-    window: groupsWeekly.window,
-    metaAudit,
+    weekLabel: groups.weekLabel,
+    window: { startISO: groups.weekStartISO, endISO: groups.weekEndISO },
     size: 120,
   });
 
@@ -199,24 +200,23 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
             <div className="mt-4 space-y-4 text-sm text-stone-600">
               <div className="grid gap-2 md:grid-cols-2">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Campanha</div>
-                  <div className="mt-1 font-mono text-xs">{metaAudit.campaign.startISO}</div>
-                  <div className="mt-1 font-mono text-xs">{metaAudit.campaign.endISO}</div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Semana corrente</div>
+                  <div className="mt-1 font-mono text-xs">{metaAudit.weekStartISO}</div>
+                  <div className="mt-1 font-mono text-xs">{metaAudit.weekEndISO}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Semana corrente</div>
-                  <div className="mt-1 font-mono text-xs">{metaAudit.weekWindow.startISO}</div>
-                  <div className="mt-1 font-mono text-xs">{metaAudit.weekWindow.endISO}</div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Período</div>
+                  <div className="mt-1 font-mono text-xs">{metaAudit.groupsPeriod}</div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                {metaAudit.byGroup.map((g) => (
+                {metaAudit.targets.byGroup.map((g) => (
                   <div
                     key={g.groupId}
                     className="flex flex-col gap-1 rounded-xl border border-stone-200 bg-stone-50 p-4 md:flex-row md:items-center md:justify-between"
                   >
-                    <div className="font-serif text-lg text-stone-900">{g.groupName}</div>
+                    <div className="font-serif text-lg text-stone-900">{g.groupId}</div>
                     <div className="text-xs uppercase tracking-widest text-stone-500">
                       Objetivo: <span className="font-semibold text-stone-900">{g.target}</span>
                     </div>
@@ -224,6 +224,31 @@ export default function SectionGroups({ data }: SectionGroupsProps) {
                   </div>
                 ))}
               </div>
+
+              <details className="rounded-xl border border-stone-200 bg-white p-4">
+                <summary className="cursor-pointer text-xs uppercase tracking-widest text-stone-500">
+                  Objetivos por loja
+                </summary>
+                <div className="mt-4 grid gap-2 md:grid-cols-2">
+                  {metaAudit.targets.byStore.map((s) => (
+                    <div
+                      key={s.storeId}
+                      className="flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-stone-900">{s.storeName}</div>
+                        <div className="mt-1 font-mono text-[11px] text-stone-500">{s.source}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-[10px] uppercase tracking-[0.28em] text-stone-400">Meta mensal</div>
+                        <div className="mt-1 font-serif text-lg text-stone-900 tabular-nums">
+                          {s.monthlyTarget ?? '—'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
           </details>
         </FadeIn>

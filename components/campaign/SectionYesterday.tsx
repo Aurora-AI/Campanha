@@ -1,6 +1,5 @@
 'use client';
 
-import EvolutionChart, { EvolutionPoint } from '@/components/EvolutionChart';
 import type { SandboxData } from '@/lib/campaign/mock';
 import PodiumHighlight from '@/components/campaign/PodiumHighlight';
 import StoreRankingColumns from '@/components/campaign/StoreRankingColumns';
@@ -10,13 +9,7 @@ type SectionYesterdayProps = {
 };
 
 export default function SectionYesterday({ data }: SectionYesterdayProps) {
-  const { title, subtitle, dayLabel, yesterdayResult, podium, storeColumns, trend } = data;
-  /**
-   * FIX DEFINITIVO (Recharts width/height -1):
-   * - o grid pai precisa permitir shrink: min-w-0
-   * - a coluna que contém o chart precisa de min-w-0
-   * - o chart em si já tem wrapper com min-w-0 + altura real
-   */
+  const { title, subtitle, dayLabel, yesterdayResult, podium, storeColumns } = data;
   return (
     <section id="dia" className="w-full bg-stone-50 py-20 md:py-28">
       <div className="mx-auto w-full max-w-6xl px-6">
@@ -41,23 +34,8 @@ export default function SectionYesterday({ data }: SectionYesterdayProps) {
           <PodiumHighlight items={podium} />
         </div>
 
-        <div className="mt-8 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="min-w-0 space-y-6 lg:col-span-5">
-            <StoreRankingColumns columns={storeColumns} />
-          </div>
-
-          <div className="min-w-0 lg:col-span-7">
-            <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-baseline justify-between">
-                <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">
-                  Evolução — Produção diária do mês
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-black/35">{trend.label}</div>
-              </div>
-
-              <EvolutionChart data={trend.points as EvolutionPoint[] | undefined} variant="bi" />
-            </div>
-          </div>
+        <div className="mt-8">
+          <StoreRankingColumns columns={storeColumns} />
         </div>
       </div>
     </section>

@@ -8,22 +8,51 @@ type PublishResult = {
   publishedVersion?: string | number;
   message?: string;
   error?: string;
+  months?: number;
+  updatedAtISO?: string;
 };
 
 export default function AdminUploadClient() {
-  const [file, setFile] = React.useState<File | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [result, setResult] = React.useState<PublishResult | null>(null);
+  const [publishFile, setPublishFile] = React.useState<File | null>(null);
+  const [monthlyFile, setMonthlyFile] = React.useState<File | null>(null);
+  const [year, setYear] = React.useState<number>(new Date().getFullYear());
+  const [month, setMonth] = React.useState<number>(new Date().getMonth() + 1);
+
+  const [loadingPublish, setLoadingPublish] = React.useState(false);
+  const [loadingMonthly, setLoadingMonthly] = React.useState(false);
+  const [publishResult, setPublishResult] = React.useState<PublishResult | null>(null);
+  const [monthlyResult, setMonthlyResult] = React.useState<PublishResult | null>(null);
+
+  const [monthlyIndex, setMonthlyIndex] = React.useState<unknown>(null);
+
+  const reloadMonthlyIndex = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/monthly-index", { cache: "no-store" });
+      if (res.status === 204) {
+        setMonthlyIndex(null);
+        return;
+      }
+      if (!res.ok) return;
+      const json = await res.json();
+      setMonthlyIndex(json);
+    } catch {
+      setMonthlyIndex(null);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    reloadMonthlyIndex();
+  }, [reloadMonthlyIndex]);
 
   async function publish() {
-    if (!file) return;
+    if (!publishFile) return;
 
-    setLoading(true);
-    setResult(null);
+    setLoadingPublish(true);
+    setPublishResult(null);
 
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", publishFile);
 
       const res = await fetch("/api/publish-csv", {
         method: "POST",
@@ -34,12 +63,39 @@ export default function AdminUploadClient() {
 
       if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
 
-      setResult(json);
+      setPublishResult(json);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Falha ao publicar.";
-      setResult({ ok: false, error: message });
+      setPublishResult({ ok: false, error: message });
     } finally {
-      setLoading(false);
+      setLoadingPublish(false);
+    }
+  }
+
+  async function publishMonth() {
+    if (!monthlyFile) return;
+
+    setLoadingMonthly(true);
+    setMonthlyResult(null);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", monthlyFile);
+      fd.append("year", String(year));
+      fd.append("month", String(month));
+
+      const res = await fetch("/api/publish-month", { method: "POST", body: fd });
+      const json = (await res.json().catch(() => ({}))) as PublishResult;
+
+      if (!res.ok) throw new Error(json?.message ?? json?.error ?? `HTTP ${res.status}`);
+
+      setMonthlyResult(json);
+      await reloadMonthlyIndex();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Falha ao publicar mês.";
+      setMonthlyResult({ ok: false, error: message });
+    } finally {
+      setLoadingMonthly(false);
     }
   }
 
@@ -61,27 +117,27 @@ export default function AdminUploadClient() {
         <input
           type="file"
           accept=".csv,text/csv"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPublishFile(e.target.files?.[0] ?? null)}
         />
 
         <button
           className="rounded-xl bg-black text-white px-4 py-2 disabled:opacity-60"
-          disabled={!file || loading}
+          disabled={!publishFile || loadingPublish}
           onClick={publish}
         >
-          {loading ? "Publicando..." : "Publicar"}
+          {loadingPublish ? "Publicando..." : "Publicar"}
         </button>
 
-        {result ? (
+        {publishResult ? (
           <div className="text-sm">
-            {result.ok === false ? (
-              <p className="text-red-600">Erro: {result.error ?? "Falha"}</p>
+            {publishResult.ok === false ? (
+              <p className="text-red-600">Erro: {publishResult.error ?? "Falha"}</p>
             ) : (
               <div className="space-y-1">
                 <p className="text-green-700">Snapshot publicado com sucesso.</p>
-                {result.publishedVersion ?? result.version ? (
+                {publishResult.publishedVersion ?? publishResult.version ? (
                   <p className="text-neutral-700">
-                    Versão: {String(result.publishedVersion ?? result.version)}
+                    Versão: {String(publishResult.publishedVersion ?? publishResult.version)}
                   </p>
                 ) : null}
                 <div className="flex gap-3 pt-2">
@@ -99,6 +155,82 @@ export default function AdminUploadClient() {
             )}
           </div>
         ) : null}
+      </div>
+
+      <div className="border border-neutral-200 rounded-2xl p-4 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-sm font-medium">Ingestão mensal (histórico)</h2>
+          <button className="text-xs underline" onClick={reloadMonthlyIndex} type="button">
+            Recarregar índice
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <label className="text-xs text-neutral-600">
+            Ano
+            <input
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-xs text-neutral-600">
+            Mês
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+              className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <div className="md:col-span-1">
+            <div className="text-xs text-neutral-600">Arquivo</div>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMonthlyFile(e.target.files?.[0] ?? null)}
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        <button
+          className="rounded-xl bg-black text-white px-4 py-2 disabled:opacity-60"
+          disabled={!monthlyFile || loadingMonthly}
+          onClick={publishMonth}
+        >
+          {loadingMonthly ? "Publicando mês..." : "Publicar mês"}
+        </button>
+
+        {monthlyResult ? (
+          <div className="text-sm">
+            {monthlyResult.ok === false ? (
+              <p className="text-red-600">Erro: {monthlyResult.error ?? "Falha"}</p>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-green-700">Mês publicado e indexado.</p>
+                {typeof monthlyResult.months === "number" ? (
+                  <p className="text-neutral-700">Meses no índice: {monthlyResult.months}</p>
+                ) : null}
+                {monthlyResult.updatedAtISO ? (
+                  <p className="text-neutral-700">Atualizado em: {monthlyResult.updatedAtISO}</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <details className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-neutral-600">
+            Índice mensal
+          </summary>
+          <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-white p-3 text-[11px] text-neutral-800 border border-neutral-200">
+            {JSON.stringify(monthlyIndex, null, 2)}
+          </pre>
+        </details>
       </div>
     </div>
   );

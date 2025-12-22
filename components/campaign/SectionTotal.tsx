@@ -5,11 +5,11 @@ import { motion } from 'framer-motion';
 import FadeIn from './FadeIn';
 
 type SectionTotalProps = {
-  data: typeof MOCK_DB.accumulated;
+  data: typeof MOCK_DB.storesMonthly;
 };
 
 export default function SectionTotal({ data }: SectionTotalProps) {
-  const { monthTotal, label, windowLabel, stores } = data;
+  const { monthLabel, fromISO, toISO, items, totalAchieved } = data;
 
   return (
     <section id="fechamento" className="w-full bg-stone-100 py-28 md:py-32">
@@ -18,12 +18,12 @@ export default function SectionTotal({ data }: SectionTotalProps) {
           <div className="grid grid-cols-1 gap-12 md:grid-cols-12 md:items-center">
             <div className="md:col-span-5">
               <span className="mb-6 block font-sans text-sm uppercase tracking-[0.2em] text-stone-500">
-                {label}
+                Acumulado do mês — por loja
               </span>
 
               <div className="relative inline-block">
                 <h2 className="font-serif text-[15vw] leading-[0.85] tracking-tighter text-stone-900 md:text-7xl">
-                  {monthTotal}
+                  {totalAchieved}
                 </h2>
                 <motion.div
                   initial={{ scaleX: 0 }}
@@ -35,7 +35,7 @@ export default function SectionTotal({ data }: SectionTotalProps) {
               </div>
 
               <div className="mt-6 text-[10px] uppercase tracking-[0.28em] text-stone-500">
-                Período: {windowLabel}
+                Mês: {monthLabel} · {fromISO} → {toISO}
               </div>
 
               <p className="mt-10 font-serif text-xl italic text-stone-600">
@@ -54,17 +54,17 @@ export default function SectionTotal({ data }: SectionTotalProps) {
                   </div>
                 </div>
 
-                {stores.length === 0 ? (
+                {items.length === 0 ? (
                   <div className="mt-4 text-sm text-black/55">Sem dados suficientes para listar lojas.</div>
                 ) : (
                   <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {stores.map((s) => (
+                    {items.map((s) => (
                       <div
-                        key={s.label}
+                        key={s.storeId}
                         className="flex items-center justify-between gap-4 rounded-xl border border-black/5 bg-black/[0.02] px-4 py-3"
                       >
-                        <div className="truncate text-sm text-black/70">{s.label}</div>
-                        <div className="shrink-0 font-serif text-lg text-black">{s.value}</div>
+                        <div className="truncate text-sm text-black/70">{s.storeName}</div>
+                        <div className="shrink-0 font-serif text-lg text-black tabular-nums">{s.achieved}</div>
                       </div>
                     ))}
                   </div>
