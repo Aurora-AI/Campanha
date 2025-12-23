@@ -30,6 +30,12 @@ type BuildEditorialSummaryOptions = {
   now?: DateTime;
 };
 
+function resolveGroup(store: string, fallbackGroup: string | undefined, config: CampaignConfig): string {
+  const prefix = store.split('—')[0]?.trim() || store.split('-')[0]?.trim() || store;
+  const mapped = config.groupByStorePrefix?.[prefix];
+  return mapped || fallbackGroup || 'Sem Grupo';
+}
+
 function asRecord(input: unknown): UnknownRecord | null {
   return input && typeof input === 'object' ? (input as UnknownRecord) : null;
 }
@@ -232,7 +238,7 @@ export function buildEditorialSummaryPayload({
 
     const store = p.store;
     if (!store) continue;
-    const group = p.group || 'Sem Grupo';
+    const group = resolveGroup(store, p.group, config);
     const existing = storeStats.get(store) ?? {
       store,
       group,
@@ -254,7 +260,7 @@ export function buildEditorialSummaryPayload({
     if (!storeStats.has(m.store)) {
       storeStats.set(m.store, {
         store: m.store,
-        group: m.group || 'Sem Grupo',
+        group: resolveGroup(m.store, m.group, config),
         approvedYesterday: m.approvedYesterday ?? 0,
         approvedWeekToYesterday: 0,
       });
