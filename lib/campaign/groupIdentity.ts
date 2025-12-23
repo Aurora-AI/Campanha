@@ -1,7 +1,7 @@
 /**
  * Identidade canônica de Grupo (A/B/C/OUTROS)
  * Garante que grupo é CHAVE, não label por index ou ranking
- * 
+ *
  * Regra de ouro: normalizeGroupKey e groupLabelFromKey são idempotentes
  */
 
