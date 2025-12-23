@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildStoreResults, buildGroupResults, buildGlobalResult, buildIntegrityCheck } from '../truthline';
-import type { Snapshot, StoreResult } from '@/lib/analytics/types';
+import { buildStoreResults, buildGroupResults, buildGlobalResult, buildIntegrityCheck } from './truthline';
+import type { StoreResult } from '@/lib/analytics/types';
 
 describe('Truthline Pipeline', () => {
   describe('buildGroupResults', () => {

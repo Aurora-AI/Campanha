@@ -13,18 +13,18 @@ export async function GET() {
   try {
     const snapshot = await getLatestSnapshot();
     const config = getCampaignConfig();
-    
+
     // Pipeline única de verdade (OS-MYCELIUM-TRUTHLINE-003)
     const stores = buildStoreResults(snapshot);
     const groups = buildGroupResults(stores);
     const global = buildGlobalResult(stores);
     const integrity = buildIntegrityCheck(stores, groups, global);
-    
+
     // Campos derivados para compatibilidade com UI existente
     const legacyPayload = buildEditorialSummaryPayload({ snapshot, config });
-    
+
     const buildSha = process.env.VERCEL_GIT_COMMIT_SHA ?? 'unknown';
-    
+
     const truthlinePayload: TruthlinePayload = {
       updatedAtISO: new Date().toISOString(),
       buildSha,
@@ -58,7 +58,7 @@ export async function GET() {
       top3: legacyPayload.top3,
       campaignTrend: legacyPayload.campaignTrend
     };
-    
+
     return NextResponse.json(truthlinePayload, {
       status: 200,
       headers: {

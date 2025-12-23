@@ -3,30 +3,35 @@
  * Tudo nasce de storeResults → grupos e global são somas → integridade matemática
  */
 
-import type { Snapshot, StoreResult, GroupResult, GlobalResult, IntegrityCheck, GroupCode } from '@/lib/analytics/types';
+import type { StoreResult, GroupResult, GlobalResult, IntegrityCheck, GroupCode } from '@/lib/analytics/types';
 import { extractStoreCode, getStoreGroup, getStoreMonthlyTarget } from '@/lib/analytics/campaignTargets';
 
 /**
  * WP2.1: Construir resultados individuais por loja (fonte primária única)
  */
-export function buildStoreResults(snapshot: Snapshot | null): StoreResult[] {
-  if (!snapshot || !Array.isArray(snapshot.storeMetrics)) {
+export function buildStoreResults(snapshot: unknown): StoreResult[] {
+  if (!snapshot || typeof snapshot !== 'object') {
     return [];
   }
 
-  return snapshot.storeMetrics
+  const snapshotObj = snapshot as Record<string, unknown>;
+  const storeMetrics = Array.isArray(snapshotObj.storeMetrics) ? snapshotObj.storeMetrics : [];
+
+  return (storeMetrics as Array<Record<string, unknown>>)
     .map((metrics) => {
-      const storeCode = extractStoreCode(metrics.store) ?? -1;
+      const store = String(metrics.store ?? '');
+      const storeCode = extractStoreCode(store) ?? -1;
       const groupCode: GroupCode = storeCode >= 0 ? getStoreGroup(storeCode) : '?';
       const monthlyTarget = storeCode >= 0 ? getStoreMonthlyTarget(storeCode) : null;
-      const monthlyRatio = monthlyTarget ? metrics.approvedTotal / monthlyTarget : null;
+      const approvedTotal = Number(metrics.approvedTotal ?? 0);
+      const monthlyRatio = monthlyTarget ? approvedTotal / monthlyTarget : null;
 
       return {
-        store: metrics.store,
+        store,
         storeCode,
         groupCode,
-        approvedYesterday: metrics.approvedYesterday ?? 0,
-        approvedTotal: metrics.approvedTotal ?? 0,
+        approvedYesterday: Number(metrics.approvedYesterday ?? 0),
+        approvedTotal,
         monthlyTarget,
         monthlyRatio,
       };
@@ -54,7 +59,7 @@ export function buildGroupResults(stores: StoreResult[]): GroupResult[] {
   // Somar lojas por grupo
   for (const store of stores) {
     if (store.groupCode === '?') continue;
-    
+
     const group = groups.get(store.groupCode)!;
     group.approvedYesterday += store.approvedYesterday;
     group.approvedTotal += store.approvedTotal;
