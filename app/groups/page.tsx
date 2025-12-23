@@ -61,7 +61,7 @@ export default function GroupsPage() {
                     <div className="flex items-end justify-between gap-6">
                       <div>
                         <div className="text-[10px] uppercase tracking-[0.28em] text-black/45">Grupo</div>
-                        <div className="mt-2 text-2xl font-semibold tracking-tight">{g.group}</div>
+                        <div className="mt-2 text-2xl font-semibold tracking-tight">{g.groupLabel}</div>
                       </div>
                       <div className="flex gap-8 text-right">
                         <div>

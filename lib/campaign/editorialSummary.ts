@@ -8,6 +8,7 @@ import {
   getStoreGroup,
   getStoreMonthlyTarget
 } from '@/lib/analytics/campaignTargets';
+import { groupLabelFromKey } from '@/lib/campaign/groupIdentity';
 
 type StoreStats = {
   store: string;
@@ -43,7 +44,8 @@ type BuildEditorialSummaryOptions = {
 
 function resolveGroup(store: string): string {
   const storeCode = extractStoreCode(store);
-  return getStoreGroup(storeCode);
+  const code = storeCode == null ? 'OUTROS' : getStoreGroup(storeCode);
+  return groupLabelFromKey(code);
 }
 
 function asRecord(input: unknown): UnknownRecord | null {

@@ -1,8 +1,11 @@
 import type { Snapshot, StoreMetrics } from '@/lib/analytics/types';
+import { extractStoreCode, groupByStoreCode } from '@/lib/analytics/campaignTargets';
+import { groupLabelFromKey } from '@/lib/campaign/groupIdentity';
 
 export type GroupsReportStore = {
   store: string;
   group: string;
+  groupLabel: string;
   approvedTotal: number;
   submittedTotal: number;
   approvedYesterday: number;
@@ -11,6 +14,7 @@ export type GroupsReportStore = {
 
 export type GroupsReportItem = {
   group: string;
+  groupLabel: string;
   approvedTotal: number;
   submittedTotal: number;
   approvedYesterday: number;
@@ -29,16 +33,19 @@ function formatRate(value: number): string {
   return `${pct}%`;
 }
 
-function normalizeGroup(value: string | null | undefined): string {
-  if (value && value.trim()) return value;
-  return 'Sem Grupo';
+function groupKeyFromStore(store: string | null | undefined): string {
+  const storeCode = extractStoreCode(store ?? '');
+  if (storeCode == null) return 'OUTROS';
+  return groupByStoreCode[storeCode] ?? 'OUTROS';
 }
 
 function buildStoreRow(row: StoreMetrics): GroupsReportStore {
   const approvalRateTotal = row.submittedTotal > 0 ? row.approvedTotal / row.submittedTotal : 0;
+  const group = groupKeyFromStore(row.store);
   return {
     store: row.store,
-    group: normalizeGroup(row.group),
+    group,
+    groupLabel: groupLabelFromKey(group),
     approvedTotal: row.approvedTotal,
     submittedTotal: row.submittedTotal,
     approvedYesterday: row.approvedYesterday,
@@ -52,7 +59,7 @@ export function buildGroupsReport(snapshot: Snapshot | null | undefined): Groups
   const grouped = new Map<string, StoreMetrics[]>();
 
   for (const row of metrics) {
-    const group = normalizeGroup(row.group);
+    const group = groupKeyFromStore(row.store);
     const list = grouped.get(group) ?? [];
     list.push({ ...row, group });
     grouped.set(group, list);
@@ -78,6 +85,7 @@ export function buildGroupsReport(snapshot: Snapshot | null | undefined): Groups
 
     groups.push({
       group,
+      groupLabel: groupLabelFromKey(group),
       approvedTotal,
       submittedTotal,
       approvedYesterday,

@@ -77,11 +77,11 @@ describe('editorialSummary group aggregation', () => {
     const summary = buildEditorialSummaryPayload({ snapshot, config, now });
 
     const groupResults = summary.heroCards?.groupResultsYesterday ?? [];
-    const groupA = groupResults.find((g) => g.group === 'Grupo A');
-    expect(groupA?.approvedYesterday).toBe(7);
+    const groupC = groupResults.find((g) => g.group === 'Grupo C');
+    expect(groupC?.approvedYesterday).toBe(7);
 
-    const storesGroupA = (summary.storeResultsYesterday ?? []).filter((r) => r.group === 'Grupo A');
-    const sumGroupA = storesGroupA.reduce((acc, s) => acc + s.approvedYesterday, 0);
-    expect(sumGroupA).toBe(groupA?.approvedYesterday);
+    const storesGroupC = (summary.storeResultsYesterday ?? []).filter((r) => r.group === 'Grupo C');
+    const sumGroupC = storesGroupC.reduce((acc, s) => acc + s.approvedYesterday, 0);
+    expect(sumGroupC).toBe(groupC?.approvedYesterday);
   });
 });

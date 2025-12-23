@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { normalizeCnpjDigits, STORE_BY_CNPJ_DIGITS, type StoreCanonical } from '@/lib/campaign/storeCatalog';
+import { normalizeGroupKey, type GroupKey } from '@/lib/campaign/groupIdentity';
 
 export type CampaignConfig = {
   campaignId: string;
@@ -44,10 +45,10 @@ export function resolveStoreName(cnpj: string, cfg: CampaignConfig): string | nu
   return cfg.storeByCnpjDigits?.[digits]?.displayName ?? null;
 }
 
-export function resolveGroup(storeName: string | null, cfg: CampaignConfig): string {
-  if (!storeName) return 'Sem Grupo';
+export function resolveGroup(storeName: string | null, cfg: CampaignConfig): GroupKey {
+  if (!storeName) return 'OUTROS';
   const prefix = storeName.split(' ').slice(0, 2).join(' ');
-  return cfg.groupByStorePrefix[prefix] ?? 'Sem Grupo';
+  return normalizeGroupKey(cfg.groupByStorePrefix[prefix] ?? 'OUTROS');
 }
 
 export function countStoresByGroup(cfg: CampaignConfig): Record<string, number> {
