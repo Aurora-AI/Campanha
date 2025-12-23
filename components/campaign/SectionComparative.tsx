@@ -79,7 +79,7 @@ function ComparativeChart({
 
       <div className="mt-4">
         <ChartFrame variant="bi">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={300}>
             <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="day" tickLine={false} axisLine={false} interval={denseInterval} />

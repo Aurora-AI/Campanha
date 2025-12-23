@@ -39,7 +39,7 @@ export default function SectionYesterday() {
         {/* Right: Line Chart Draw */}
         <div ref={ref} className="w-full min-w-0 relative">
           <ChartFrame variant="home">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={220}>
               <LineChart data={data.timeline}>
                 <XAxis
                   dataKey="day"

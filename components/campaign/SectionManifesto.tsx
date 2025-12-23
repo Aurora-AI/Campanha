@@ -1,6 +1,6 @@
 'use client';
 
-import { MANIFESTO_DATA } from '@/lib/sandbox/mock';
+import { MANIFESTO_DATA } from '@/lib/campaign/content';
 import FadeIn from './FadeIn';
 
 export default function SectionManifesto() {

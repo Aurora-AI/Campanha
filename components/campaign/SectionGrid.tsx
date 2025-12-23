@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { SECTION_GRID_DATA } from '@/lib/sandbox/mock';
+import { SECTION_GRID_DATA } from '@/lib/campaign/content';
 import FadeIn from './FadeIn';
 
 export default function SectionGrid() {
@@ -10,10 +10,10 @@ export default function SectionGrid() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 auto-rows-[400px]">
         {SECTION_GRID_DATA.map((item, index) => {
             // Asymmetric spans based on index
-            const colSpan = index === 0 ? 'lg:col-span-8' : 
-                            index === 1 ? 'lg:col-span-4' : 
+            const colSpan = index === 0 ? 'lg:col-span-8' :
+                            index === 1 ? 'lg:col-span-4' :
                             index === 2 ? 'lg:col-span-5' : 'lg:col-span-7';
-            
+
             return (
                 <FadeIn key={item.id} delay={index * 0.1} className={`relative group overflow-hidden ${colSpan} bg-stone-200`}>
                      <Image

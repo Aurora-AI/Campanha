@@ -97,7 +97,7 @@ export const MOCK_DB: SandboxData = {
     headline: "Aceleração 2025",
     subheadline: "Ritmo diário e leitura rápida do que importa hoje.",
     weeklyGoals: [
-      { group: "Grupo A", target: 100, actual: 85, onTrack: false },
+      { group: "Grupo A", target: 100, actual: 7, onTrack: false },
       { group: "Grupo B", target: 60, actual: 52, onTrack: false },
       { group: "Grupo C", target: 66, actual: 48, onTrack: false }
     ],

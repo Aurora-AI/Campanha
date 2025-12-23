@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { SECTION_GRID_DATA } from '@/lib/sandbox/mock';
+import { SECTION_GRID_DATA } from '@/lib/campaign/content';
 
 import FadeIn from './FadeIn';
 
