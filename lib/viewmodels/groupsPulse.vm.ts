@@ -11,6 +11,8 @@ export type GroupRadialInput = {
   statusEmoji?: '🟢' | '🟡' | '🔴';
 };
 
+import { groupLabelFromKey } from '@/lib/campaign/groupIdentity';
+
 export type GroupsPulseVM = {
   statusLabel: string;
   statusPillClass: string;
@@ -72,9 +74,7 @@ function statusToEmoji(status: CampaignStatus | undefined): string | undefined {
 }
 
 function shortGroupLabel(group: string): string {
-  const cleaned = group.replace(/^grupo\s+/i, '').trim();
-  if (cleaned) return cleaned;
-  return group.trim().slice(0, 1).toUpperCase() || '-';
+  return groupLabelFromKey(group);
 }
 
 export function buildGroupsPulseVM(args: {
