@@ -103,6 +103,12 @@ export type EditorialSummaryVM = {
     topStoreBySubmitted: { store: string; value: number };
   };
   top3: Array<{ rank: 1 | 2 | 3; name: string; value: string }>;
+  /** Meta mensal total da campanha */
+  campaignMonthlyTarget?: number;
+  /** Progresso mensal da campanha */
+  campaignMonthlyProgress?: number;
+  /** Ratio de atingimento mensal da campanha */
+  campaignMonthlyRatio?: number;
 };
 
 export type Snapshot = {

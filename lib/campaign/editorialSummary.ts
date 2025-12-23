@@ -2,6 +2,12 @@ import { DateTime } from 'luxon';
 import { weeklyTargetTotal, type CampaignConfig } from '@/lib/campaign/config';
 import type { EditorialSummaryVM, ProposalFact, StatusLabel, StoreMetrics } from '@/lib/analytics/types';
 import type { UnknownRecord } from '@/lib/data';
+import {
+  campaignMonthlyTarget,
+  extractStoreCode,
+  getStoreGroup,
+  getStoreMonthlyTarget
+} from '@/lib/analytics/campaignTargets';
 
 type StoreStats = {
   store: string;
@@ -19,7 +25,12 @@ type CampaignTrendPoint = {
 };
 
 export type EditorialSummaryPayload = Omit<EditorialSummaryVM, 'dailyEditorial' | 'weeklyEditorial'> & {
-  storeTotals: Array<{ store: string; approvedTotal: number }>;
+  storeTotals: Array<{
+    store: string;
+    approvedTotal: number;
+    monthlyTarget: number | null;
+    monthlyRatio: number | null;
+  }>;
   topYesterday: Array<{ store: string; approvedYesterday: number }>;
   campaignTrend: { points: CampaignTrendPoint[] };
 };
@@ -30,10 +41,9 @@ type BuildEditorialSummaryOptions = {
   now?: DateTime;
 };
 
-function resolveGroup(store: string, fallbackGroup: string | undefined, config: CampaignConfig): string {
-  const prefix = store.split('—')[0]?.trim() || store.split('-')[0]?.trim() || store;
-  const mapped = config.groupByStorePrefix?.[prefix];
-  return mapped || fallbackGroup || 'Sem Grupo';
+function resolveGroup(store: string): string {
+  const storeCode = extractStoreCode(store);
+  return getStoreGroup(storeCode);
 }
 
 function asRecord(input: unknown): UnknownRecord | null {
@@ -238,7 +248,7 @@ export function buildEditorialSummaryPayload({
 
     const store = p.store;
     if (!store) continue;
-    const group = resolveGroup(store, p.group, config);
+    const group = resolveGroup(store);
     const existing = storeStats.get(store) ?? {
       store,
       group,
@@ -260,7 +270,7 @@ export function buildEditorialSummaryPayload({
     if (!storeStats.has(m.store)) {
       storeStats.set(m.store, {
         store: m.store,
-        group: resolveGroup(m.store, m.group, config),
+        group: resolveGroup(m.store),
         approvedYesterday: m.approvedYesterday ?? 0,
         approvedWeekToYesterday: 0,
       });
@@ -283,7 +293,17 @@ export function buildEditorialSummaryPayload({
   storeResults.sort((a, b) => b.approvedYesterday - a.approvedYesterday || a.store.localeCompare(b.store));
 
   const storeTotals = storeMetrics
-    .map((row) => ({ store: row.store, approvedTotal: row.approvedTotal }))
+    .map((row) => {
+      const storeCode = extractStoreCode(row.store);
+      const monthlyTarget = getStoreMonthlyTarget(storeCode);
+      const monthlyRatio = monthlyTarget ? row.approvedTotal / monthlyTarget : null;
+      return {
+        store: row.store,
+        approvedTotal: row.approvedTotal,
+        monthlyTarget,
+        monthlyRatio
+      };
+    })
     .sort((a, b) => b.approvedTotal - a.approvedTotal || a.store.localeCompare(b.store));
 
   const topYesterday = storeMetrics
@@ -327,6 +347,9 @@ export function buildEditorialSummaryPayload({
         })
       : [];
 
+  const campaignMonthlyProgress = summary.totals.approved;
+  const campaignMonthlyRatio = campaignMonthlyTarget > 0 ? campaignMonthlyProgress / campaignMonthlyTarget : 0;
+
   return {
     ...summaryBase,
     hero: {
@@ -355,5 +378,8 @@ export function buildEditorialSummaryPayload({
     campaignTrend: {
       points: campaignTrendPoints,
     },
+    campaignMonthlyTarget,
+    campaignMonthlyProgress,
+    campaignMonthlyRatio,
   };
 }
