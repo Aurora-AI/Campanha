@@ -1,5 +1,6 @@
 export type ProposalStatus = 'APROVADO' | 'REPROVADO' | 'OUTROS';
 export type StatusLabel = 'NO JOGO' | 'EM DISPUTA' | 'FORA DO RITMO';
+export type GroupCode = 'A' | 'B' | 'C' | '?';
 
 export type ProposalFact = {
   proposalId: number;
@@ -122,4 +123,79 @@ export type Snapshot = {
   proposals: ProposalFact[];
   storeMetrics: StoreMetrics[];
   editorialSummary: EditorialSummaryVM;
+};
+
+/**
+ * OS-MYCELIUM-TRUTHLINE-003: Tipos canônicos da pipeline única de verdade
+ */
+
+/** Resultado individual por loja (fonte primária única) */
+export type StoreResult = {
+  store: string;
+  storeCode: number;
+  groupCode: GroupCode;
+  approvedYesterday: number;
+  approvedTotal: number;
+  monthlyTarget: number | null;
+  monthlyRatio: number | null;
+  dayRatio?: number;
+};
+
+/** Resultado agregado por grupo (soma de lojas) */
+export type GroupResult = {
+  groupCode: 'A' | 'B' | 'C';
+  approvedYesterday: number;
+  approvedTotal: number;
+  monthlyTarget: number;
+  monthlyRatio: number;
+};
+
+/** Resultado global da campanha (soma de lojas) */
+export type GlobalResult = {
+  approvedYesterday: number;
+  approvedTotal: number;
+  monthlyTarget: number;
+  monthlyRatio: number;
+};
+
+/** Verificação de integridade matemática */
+export type IntegrityCheck = {
+  ok: boolean;
+  diffs: {
+    stores_vs_groups: {
+      approvedYesterday: number;
+      approvedTotal: number;
+      monthlyTarget: number;
+    };
+    stores_vs_global: {
+      approvedYesterday: number;
+      approvedTotal: number;
+      monthlyTarget: number;
+    };
+    groups_vs_global: {
+      approvedYesterday: number;
+      approvedTotal: number;
+      monthlyTarget: number;
+    };
+  };
+};
+
+/** Payload único de verdade (auditável) */
+export type TruthlinePayload = {
+  updatedAtISO: string;
+  buildSha: string;
+  stores: StoreResult[];
+  groups: GroupResult[];
+  global: GlobalResult;
+  integrity: IntegrityCheck;
+  /** Campos derivados para compatibilidade com UI existente */
+  hero: EditorialSummaryVM['hero'];
+  heroCards: EditorialSummaryVM['heroCards'];
+  dailyResult: EditorialSummaryVM['dailyResult'];
+  pulse: EditorialSummaryVM['pulse'];
+  totals: EditorialSummaryVM['totals'];
+  comparatives: EditorialSummaryVM['comparatives'];
+  highlights: EditorialSummaryVM['highlights'];
+  top3: EditorialSummaryVM['top3'];
+  campaignTrend?: EditorialSummaryVM['campaignTrend'];
 };
