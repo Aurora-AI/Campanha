@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { normalizeCnpjDigits, STORE_BY_CNPJ_DIGITS } from '@/lib/campaign/storeCatalog';
+import { normalizeCnpjDigits, STORE_BY_CNPJ_DIGITS, type StoreCanonical } from '@/lib/campaign/storeCatalog';
 
 export type CampaignConfig = {
   campaignId: string;
@@ -12,7 +12,7 @@ export type CampaignConfig = {
   weekStartsOn: 'monday' | 'sunday';
   useFinalizedDateForApprovals: boolean;
   weeklyTargetPerStoreByGroup: Record<string, number>;
-  storeByCnpjDigits?: Record<string, string>;
+  storeByCnpjDigits?: Record<string, StoreCanonical>;
   groupByStorePrefix: Record<string, string>;
 };
 
@@ -41,7 +41,7 @@ export function cnpjDigits(cnpj: string): string {
 
 export function resolveStoreName(cnpj: string, cfg: CampaignConfig): string | null {
   const digits = cnpjDigits(cnpj);
-  return cfg.storeByCnpjDigits?.[digits] ?? null;
+  return cfg.storeByCnpjDigits?.[digits]?.displayName ?? null;
 }
 
 export function resolveGroup(storeName: string | null, cfg: CampaignConfig): string {

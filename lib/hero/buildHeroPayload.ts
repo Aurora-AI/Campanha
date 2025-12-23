@@ -1,7 +1,7 @@
 import type { MetricsPayload } from "@/lib/metrics/compute";
 import { assets } from "@/lib/assets";
 import { HeroPayloadSchema, type HeroPayload } from "@/schemas/hero.schema";
-import { STORE_BY_CNPJ_DIGITS } from "@/lib/campaign/storeCatalog";
+import { STORES_CANONICAL } from "@/lib/campaign/storeCatalog";
 
 type GroupDef = {
   key: "A" | "B" | "C";
@@ -22,17 +22,17 @@ const GROUPS: GroupDef[] = [
  * Returns null if store is not in canonical catalog.
  */
 const extractStoreNumberFromCanonical = (storeName: string): string | null => {
-  // Formato canônico: "LOJA NN LOCATION"
+  // Formato canônico: "LOJA NN — CIDADE BAIRRO"
   // Extrai o número e valida contra catálogo
-  const parts = storeName.split(/\s+/);
-  if (parts[0].toUpperCase() !== 'LOJA' || !parts[1]) return null;
+  const parts = storeName.split(/[\s—]+/);
+  if (parts[0]?.toUpperCase() !== 'LOJA' || !parts[1]) return null;
 
   const num = parts[1];
   const padded = num.padStart(2, '0');
 
   // Validar que este número existe no catálogo
-  const existsInCatalog = Object.values(STORE_BY_CNPJ_DIGITS).some(
-    (name) => name.includes(`LOJA ${padded}`) || name.includes(`LOJA ${num}`)
+  const existsInCatalog = STORES_CANONICAL.some(
+    (store) => store.storeNumber === parseInt(num, 10)
   );
 
   return existsInCatalog ? padded : null;
