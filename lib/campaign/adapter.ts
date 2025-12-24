@@ -3,6 +3,7 @@ import { ProposalFact, StoreMetrics } from '@/lib/analytics/types';
 import { DateTime } from 'luxon';
 import type { UnknownRecord } from '@/lib/data';
 import { countStoresByGroup, getCampaignConfig } from '@/lib/campaign/config';
+import { groupLabelFromKey, normalizeGroupKey } from '@/lib/campaign/groupIdentity';
 
 // Helper types matching the Mock DB structure
 type GroupGoal = { group: string; actual: number; target: number };
@@ -18,6 +19,11 @@ function safeNumber(value: unknown, fallback = 0): number {
 
 function safeString(value: unknown, fallback = ''): string {
   return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+}
+
+function normalizeGroupLabel(value: string | null | undefined): string {
+  if (!value) return 'Sem Grupo';
+  return groupLabelFromKey(normalizeGroupKey(value));
 }
 
 function approvalDateISO(p: ProposalFact, useFinalized: boolean): string | null {
@@ -86,7 +92,7 @@ function buildGroupsWeekly(options: {
     if (dt < weekStart) continue;
     if (dt > now) continue;
 
-    const group = p.group || 'Sem Grupo';
+    const group = normalizeGroupLabel(p.group);
     achievedByGroup.set(group, (achievedByGroup.get(group) ?? 0) + (p.approved ?? 0));
   }
   const groups = Object.keys(weeklyTargetPerStoreByGroup);
@@ -246,7 +252,7 @@ function aggregateWeeklyGoals(options: {
     if (!dt.isValid) continue;
     if (dt < weekStart || dt > yesterday) continue;
 
-    const group = p.group || 'Sem Grupo';
+    const group = normalizeGroupLabel(p.group);
     approvedByGroup.set(group, (approvedByGroup.get(group) ?? 0) + (p.approved ?? 0));
   }
 
