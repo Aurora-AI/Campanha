@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import FadeIn from '../sandbox/FadeIn';
 import { buildGroupsPulseVM } from '@/lib/viewmodels/groupsPulse.vm';
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 
 type RadialThermometerProps = {
   size: number;
@@ -74,6 +75,7 @@ type SectionGroupsProps = {
 
 export default function SectionGroups({ campaign, groups, metaAudit }: SectionGroupsProps) {
   const { groupsRadial, status, statusLabel, nextAction } = campaign;
+  const [activeChipKey, setActiveChipKey] = useState<string | null>(null);
 
   const weeklyByGroup = new Map(groups.items.map((g) => [g.groupName, g]));
   const enrichedRadial = groupsRadial.map((g) => {
@@ -96,6 +98,21 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
     window: { startISO: groups.weekStartISO, endISO: groups.weekEndISO },
     size: 120,
   });
+
+  const historyByGroup = useMemo(() => {
+    return new Map((groups.historyWeeklyByGroup ?? []).map((g) => [g.groupId, g.weeks]));
+  }, [groups.historyWeeklyByGroup]);
+
+  const chipTooltip = (opts: {
+    weekKey: string;
+    rangeLabel: string;
+    approved: number | null;
+    effort?: number | null;
+  }): string => {
+    const approvedLabel = opts.approved == null ? '—' : String(opts.approved);
+    const effortLabel = opts.effort == null ? '—' : String(opts.effort);
+    return `${opts.weekKey} • ${opts.rangeLabel}\nAprovados: ${approvedLabel}\nPropostas: ${effortLabel}`;
+  };
 
   return (
     <section id="campanha" className="w-full bg-white py-24 md:py-32">
@@ -161,6 +178,53 @@ export default function SectionGroups({ campaign, groups, metaAudit }: SectionGr
                       {card.statusEmoji ? `${card.statusEmoji} ` : ''}
                       {card.attainmentLabel ?? '—'}
                     </span>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    {(historyByGroup.get(card.title) ?? []).map((w, idx) => (
+                      <span key={`${card.key}-${w.weekKey}-${idx}`} className="relative">
+                        {(() => {
+                          const chipKey = `${card.key}-${idx}`;
+                          const tooltipText = chipTooltip({
+                            weekKey: w.weekKey,
+                            rangeLabel: w.rangeLabel,
+                            approved: w.approved,
+                            effort: w.effort,
+                          });
+                          const isOpen = activeChipKey === chipKey;
+
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                aria-label={`Semana encerrada W-${idx + 1}`}
+                                aria-expanded={isOpen}
+                                onMouseEnter={() => setActiveChipKey(chipKey)}
+                                onMouseLeave={() => setActiveChipKey((prev) => (prev === chipKey ? null : prev))}
+                                onFocus={() => setActiveChipKey(chipKey)}
+                                onBlur={() => setActiveChipKey((prev) => (prev === chipKey ? null : prev))}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') setActiveChipKey(null);
+                                }}
+                                onClick={() => setActiveChipKey((prev) => (prev === chipKey ? null : chipKey))}
+                                className="rounded-full border border-stone-200 bg-white px-2 py-1 text-[10px] uppercase tracking-widest text-stone-600 hover:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                              >
+                                W-{idx + 1}
+                              </button>
+
+                              {isOpen ? (
+                                <div
+                                  role="tooltip"
+                                  className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-max max-w-[260px] -translate-x-1/2 whitespace-pre-line rounded-xl border border-stone-200 bg-white px-3 py-2 text-left text-[11px] leading-snug text-stone-700 shadow-sm"
+                                >
+                                  {tooltipText}
+                                </div>
+                              ) : null}
+                            </>
+                          );
+                        })()}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </motion.div>

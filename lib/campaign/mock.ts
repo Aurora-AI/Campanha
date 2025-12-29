@@ -39,6 +39,15 @@ export interface SandboxData {
     weekLabel: string;
     weekStartISO: string;
     weekEndISO: string;
+    historyWeeklyByGroup: Array<{
+      groupId: string;
+      weeks: Array<{
+        weekKey: string;
+        rangeLabel: string;
+        approved: number | null;
+        effort?: number | null;
+      }>;
+    }>;
     items: Array<{
       groupId: string;
       groupName: string;
@@ -147,6 +156,35 @@ export const MOCK_DB: SandboxData = {
     weekLabel: 'Semana 01–07 Dez',
     weekStartISO: '2025-12-01T00:00:00.000-03:00',
     weekEndISO: '2025-12-07T23:59:59.999-03:00',
+    historyWeeklyByGroup: [
+      {
+        groupId: 'Grupo A',
+        weeks: [
+          { weekKey: '2025-W48', rangeLabel: '17–23 Nov', approved: 72, effort: 210 },
+          { weekKey: '2025-W47', rangeLabel: '10–16 Nov', approved: 68, effort: 198 },
+          { weekKey: '2025-W46', rangeLabel: '03–09 Nov', approved: 64, effort: 190 },
+          { weekKey: '2025-W45', rangeLabel: '27 Out–02 Nov', approved: 61, effort: 175 },
+        ],
+      },
+      {
+        groupId: 'Grupo B',
+        weeks: [
+          { weekKey: '2025-W48', rangeLabel: '17–23 Nov', approved: 41, effort: 160 },
+          { weekKey: '2025-W47', rangeLabel: '10–16 Nov', approved: 39, effort: 152 },
+          { weekKey: '2025-W46', rangeLabel: '03–09 Nov', approved: 37, effort: 145 },
+          { weekKey: '2025-W45', rangeLabel: '27 Out–02 Nov', approved: 35, effort: 138 },
+        ],
+      },
+      {
+        groupId: 'Grupo C',
+        weeks: [
+          { weekKey: '2025-W48', rangeLabel: '17–23 Nov', approved: 33, effort: 120 },
+          { weekKey: '2025-W47', rangeLabel: '10–16 Nov', approved: 31, effort: 115 },
+          { weekKey: '2025-W46', rangeLabel: '03–09 Nov', approved: 29, effort: 110 },
+          { weekKey: '2025-W45', rangeLabel: '27 Out–02 Nov', approved: 28, effort: 105 },
+        ],
+      },
+    ],
     items: [
       { groupId: 'Grupo A', groupName: 'Grupo A', achieved: 85, target: 100, attainmentPct: 0.85, status: '🟡' },
       { groupId: 'Grupo B', groupName: 'Grupo B', achieved: 52, target: 60, attainmentPct: 0.866, status: '🟡' },

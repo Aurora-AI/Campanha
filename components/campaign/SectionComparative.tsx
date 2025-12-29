@@ -11,6 +11,12 @@ import {
   YAxis,
   Tooltip,
 } from 'recharts';
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
+type TooltipEnvelope = {
+  active?: boolean;
+  payload?: Array<{ payload?: unknown; value?: ValueType }>;
+  label?: NameType;
+};
 import { ChartFrame } from '@/components/charts/ChartFrame';
 import type { SandboxData } from '@/lib/campaign/mock';
 import { fmtPct, fmtPp } from '@/lib/ui/formatNumbers';
@@ -33,10 +39,10 @@ function toPoints(series: Array<{ dateISO: string; currentValue: number; baselin
  * Custom tooltip para gráficos comparativos
  * Exibe dia e valores de forma clara, sem animação
  */
-function ComparativeTooltip({ active, payload }: any) {
-  if (!active || !payload || !payload.length) return null;
+function ComparativeTooltip({ active, payload }: TooltipEnvelope) {
+  if (!active || !payload?.length) return null;
 
-  const data = payload[0]?.payload;
+  const data = payload[0]?.payload as ComparativePoint | undefined;
   if (!data) return null;
 
   const prefersReducedMotion = typeof window !== 'undefined' &&

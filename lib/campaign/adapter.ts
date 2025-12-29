@@ -2,11 +2,21 @@ import { CampaignStatus, MOCK_DB, SandboxData } from './mock';
 import { ProposalFact, StoreMetrics } from '@/lib/analytics/types';
 import { DateTime } from 'luxon';
 import type { UnknownRecord } from '@/lib/data';
-import { countStoresByGroup, getCampaignConfig } from '@/lib/campaign/config';
+import { countStoresByGroup, getCampaignConfig, resolveGroup } from '@/lib/campaign/config';
 import { groupLabelFromKey, normalizeGroupKey } from '@/lib/campaign/groupIdentity';
 
 // Helper types matching the Mock DB structure
 type GroupGoal = { group: string; actual: number; target: number };
+
+export type GroupWeekly = {
+  groupId: string;
+  weeks: Array<{
+    weekKey: string; // ex: 2025-W52
+    rangeLabel: string; // ex: "16–22 Dez"
+    approved: number | null;
+    effort?: number | null;
+  }>;
+};
 
 function asRecord(input: unknown): UnknownRecord | null {
   return input && typeof input === 'object' ? (input as UnknownRecord) : null;
@@ -51,6 +61,149 @@ function formatWeekLabel(options: { start: DateTime; end: DateTime }): string {
   return `Semana ${startDay}–${endDay} ${monthPart}`;
 }
 
+function formatWeekRangeLabel(options: { start: DateTime; end: DateTime }): string {
+  const start = options.start.setLocale('pt-BR');
+  const end = options.end.setLocale('pt-BR');
+
+  const startDay = start.toFormat('dd');
+  const endDay = end.toFormat('dd');
+
+  const startMonth = start.toFormat('LLL');
+  const endMonth = end.toFormat('LLL');
+
+  const monthPart = startMonth === endMonth ? endMonth : `${startMonth}–${endMonth}`;
+  return `${startDay}–${endDay} ${capitalizeFirst(monthPart)}`;
+}
+
+function weekKeyFromStart(weekStart: DateTime): string {
+  const year = weekStart.weekYear;
+  const week = String(weekStart.weekNumber).padStart(2, '0');
+  return `${year}-W${week}`;
+}
+
+function groupLabelFromStore(storeName: string | null | undefined, cfg: ReturnType<typeof getCampaignConfig>): string {
+  const key = resolveGroup(storeName ?? null, cfg);
+  return groupLabelFromKey(key);
+}
+
+export function buildGroupsWeeklyHistory(args: {
+  currentProposals: ProposalFact[];
+  baselineProposals: ProposalFact[];
+  baselineLoaded: boolean;
+  tz: string;
+  now: DateTime;
+  useFinalized: boolean;
+  currentYm: { year: number; month: number };
+  prevYm: { year: number; month: number };
+  groupsOrdered: string[];
+  weeksBack: number;
+  cfg: ReturnType<typeof getCampaignConfig>;
+}): GroupWeekly[] {
+  const {
+    currentProposals,
+    baselineProposals,
+    baselineLoaded,
+    tz,
+    now,
+    useFinalized,
+    currentYm,
+    prevYm,
+    groupsOrdered,
+    weeksBack,
+    cfg,
+  } = args;
+
+  const combined = baselineLoaded ? [...currentProposals, ...baselineProposals] : [...currentProposals];
+  const currentWeekStart = startOfWeek(now.setZone(tz).startOf('day'), 'monday');
+
+  const weeks = Array.from({ length: Math.max(0, weeksBack) }, (_, i) => {
+    const start = currentWeekStart.minus({ weeks: i + 1 }).startOf('day');
+    const end = start.plus({ days: 6 }).endOf('day');
+    return { start, end };
+  });
+
+  const byGroup = new Map<string, GroupWeekly>();
+  for (const g of groupsOrdered) {
+    byGroup.set(g, { groupId: g, weeks: [] });
+  }
+
+  for (const { start, end } of weeks) {
+    const needsMonths: Array<{ year: number; month: number }> =
+      start.year === end.year && start.month === end.month
+        ? [{ year: start.year, month: start.month }]
+        : [
+            { year: start.year, month: start.month },
+            { year: end.year, month: end.month },
+          ];
+
+    const isMonthAvailable = (ym: { year: number; month: number }): boolean => {
+      if (ym.year === currentYm.year && ym.month === currentYm.month) return true;
+      if (ym.year === prevYm.year && ym.month === prevYm.month) return baselineLoaded;
+      return false;
+    };
+
+    const completeDataAvailable = needsMonths.every(isMonthAvailable);
+    const weekKey = weekKeyFromStart(start);
+    const rangeLabel = formatWeekRangeLabel({ start, end });
+
+    if (!completeDataAvailable) {
+      for (const groupId of groupsOrdered) {
+        byGroup.get(groupId)?.weeks.push({ weekKey, rangeLabel, approved: null, effort: null });
+      }
+      continue;
+    }
+
+    const storeAgg = new Map<string, { approved: number; effort: number }>();
+
+    for (const p of combined) {
+      const store = p.store;
+      if (!store) continue;
+
+      let entryDt: DateTime | null = null;
+      if (p.entryDateISO) {
+        const parsed = DateTime.fromISO(p.entryDateISO, { zone: tz }).startOf('day');
+        if (parsed.isValid) entryDt = parsed;
+      }
+      const approvalISO = approvalDateISO(p, useFinalized);
+      const approvalDt = approvalISO ? DateTime.fromISO(approvalISO, { zone: tz }).startOf('day') : null;
+
+      const withinEntry = entryDt ? entryDt >= start.startOf('day') && entryDt <= end.startOf('day') : false;
+      const withinApproval =
+        approvalDt && approvalDt.isValid
+          ? approvalDt >= start.startOf('day') && approvalDt <= end.startOf('day')
+          : false;
+
+      if (!withinEntry && !withinApproval) continue;
+
+      const row = storeAgg.get(store) ?? { approved: 0, effort: 0 };
+      if (withinApproval) row.approved += p.approved ?? 0;
+      if (withinEntry) row.effort += 1;
+      storeAgg.set(store, row);
+    }
+
+    const groupAgg = new Map<string, { approved: number; effort: number }>();
+    for (const [store, row] of storeAgg.entries()) {
+      const group = groupLabelFromStore(store, cfg);
+      const g = groupAgg.get(group) ?? { approved: 0, effort: 0 };
+      g.approved += row.approved;
+      g.effort += row.effort;
+      groupAgg.set(group, g);
+    }
+
+    for (const groupId of groupsOrdered) {
+      const agg = groupAgg.get(groupId);
+      byGroup.get(groupId)?.weeks.push({
+        weekKey,
+        rangeLabel,
+        approved: agg ? agg.approved : 0,
+        effort: agg ? agg.effort : 0,
+      });
+    }
+  }
+
+  return groupsOrdered.map((g) => byGroup.get(g) ?? { groupId: g, weeks: [] });
+}
+
 function groupStatusFromAttainment(attainmentPct: number): CampaignStatus {
   if (attainmentPct >= 1) return 'NO_JOGO';
   if (attainmentPct >= 0.9) return 'EM_DISPUTA';
@@ -65,6 +218,7 @@ function buildGroupsWeekly(options: {
   useFinalized: boolean;
   weeklyTargetPerStoreByGroup: Record<string, number>;
   storesPerGroup: Record<string, number>;
+  historyWeeklyByGroup?: GroupWeekly[];
 }): Pick<SandboxData, 'groups' | 'metaAudit'> {
   const {
     proposals,
@@ -74,6 +228,7 @@ function buildGroupsWeekly(options: {
     useFinalized,
     weeklyTargetPerStoreByGroup,
     storesPerGroup,
+    historyWeeklyByGroup,
   } = options;
 
   const weekStart = startOfWeek(now, 'monday');
@@ -118,6 +273,7 @@ function buildGroupsWeekly(options: {
       weekStartISO: weekStart.toISO() ?? '',
       weekEndISO: now.toISO() ?? '',
       items,
+      historyWeeklyByGroup: historyWeeklyByGroup ?? [],
     },
     metaAudit: {
       groupsPeriod: 'weekly',
@@ -525,6 +681,21 @@ export function adaptSnapshotToCampaign(snapshot: unknown, options: AdaptCampaig
 
     const weeklyGoals = weeklyGoalsBase.map((g) => ({ ...g, onTrack: false }));
 
+    const groupsOrdered = Object.keys(cfg.weeklyTargetPerStoreByGroup);
+    const historyWeeklyByGroup = buildGroupsWeeklyHistory({
+      currentProposals: [],
+      baselineProposals,
+      baselineLoaded,
+      tz: cfg.timezone,
+      now: tzNow,
+      useFinalized: cfg.useFinalizedDateForApprovals,
+      currentYm: dataCoverage.currentMonthLoaded,
+      prevYm: prevYearMonth(dataCoverage.currentMonthLoaded.year, dataCoverage.currentMonthLoaded.month),
+      groupsOrdered,
+      weeksBack: 4,
+      cfg,
+    });
+
     const { groups, metaAudit } = buildGroupsWeekly({
       proposals: [],
       storeMetrics: [],
@@ -533,6 +704,7 @@ export function adaptSnapshotToCampaign(snapshot: unknown, options: AdaptCampaig
       useFinalized: cfg.useFinalizedDateForApprovals,
       weeklyTargetPerStoreByGroup: cfg.weeklyTargetPerStoreByGroup,
       storesPerGroup,
+      historyWeeklyByGroup,
     });
 
     const storesMonthly = buildStoresMonthly({
@@ -657,6 +829,19 @@ export function adaptSnapshotToCampaign(snapshot: unknown, options: AdaptCampaig
   const campaignStatus = normalizeStatus(safeString(heroObj?.statusLabel));
 
   const { groups, metaAudit } = buildGroupsWeekly({
+    historyWeeklyByGroup: buildGroupsWeeklyHistory({
+      currentProposals: proposals,
+      baselineProposals,
+      baselineLoaded,
+      tz: cfg.timezone,
+      now: tzNow,
+      useFinalized: cfg.useFinalizedDateForApprovals,
+      currentYm: resolvedCoverage.currentMonthLoaded,
+      prevYm,
+      groupsOrdered: Object.keys(cfg.weeklyTargetPerStoreByGroup),
+      weeksBack: 4,
+      cfg,
+    }),
     proposals,
     storeMetrics,
     tz: cfg.timezone,

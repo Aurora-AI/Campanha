@@ -215,7 +215,7 @@ describe('Truthline Pipeline', () => {
             approvalRateYesterday: 0.71,
           },
         ],
-        editorialSummary: {} as any,
+        editorialSummary: {} as Record<string, unknown>,
       } as Snapshot;
 
       const results = buildStoreResults(snapshot);
@@ -246,7 +246,7 @@ describe('Truthline Pipeline', () => {
             approvalRateYesterday: 0.5,
           },
         ],
-        editorialSummary: {} as any,
+        editorialSummary: {} as Record<string, unknown>,
       } as Snapshot;
 
       const results = buildStoreResults(snapshot);
