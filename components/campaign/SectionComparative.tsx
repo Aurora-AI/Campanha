@@ -11,6 +11,8 @@ import {
   YAxis,
   Tooltip,
 } from 'recharts';
+import type { TooltipContentProps } from 'recharts/types/component/Tooltip';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 import type { SandboxData } from '@/lib/campaign/mock';
 import { fmtPct, fmtPp } from '@/lib/ui/formatNumbers';
@@ -33,10 +35,10 @@ function toPoints(series: Array<{ dateISO: string; currentValue: number; baselin
  * Custom tooltip para gráficos comparativos
  * Exibe dia e valores de forma clara, sem animação
  */
-function ComparativeTooltip({ active, payload }: any) {
-  if (!active || !payload || !payload.length) return null;
+function ComparativeTooltip({ active, payload }: TooltipContentProps<ValueType, NameType>) {
+  if (!active || !payload?.length) return null;
 
-  const data = payload[0]?.payload;
+  const data = (payload[0] as unknown as { payload?: unknown })?.payload as ComparativePoint | undefined;
   if (!data) return null;
 
   const prefersReducedMotion = typeof window !== 'undefined' &&
@@ -85,7 +87,7 @@ function ComparativeChart({
               <XAxis dataKey="day" tickLine={false} axisLine={false} interval={denseInterval} />
               <YAxis tickLine={false} axisLine={false} width={32} />
               <Tooltip
-                content={<ComparativeTooltip />}
+                content={(props) => <ComparativeTooltip {...props} />}
                 cursor={{ stroke: 'rgba(0,0,0,0.1)', strokeWidth: 1 }}
                 contentStyle={{ background: 'transparent', border: 'none' }}
                 wrapperStyle={{ outline: 'none' }}

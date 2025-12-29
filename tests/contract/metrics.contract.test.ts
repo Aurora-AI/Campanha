@@ -11,11 +11,13 @@ vi.mock("@vercel/blob", () => ({
 
 import { head } from "@vercel/blob";
 
+const headMock = vi.mocked(head);
+
 describe("contract: GET /api/metrics", () => {
   it("retorna payload válido no schema (Zod)", async () => {
     const blobPayload = await loadFixtureJson("sample_payload.json");
 
-    (head as any).mockResolvedValueOnce({ url: "http://localhost/blob/campanha-data.json" });
+    headMock.mockResolvedValueOnce({ url: "http://localhost/blob/campanha-data.json" });
     global.fetch = vi.fn().mockResolvedValueOnce(okJson(blobPayload));
 
     const res = await metricsHandler();
@@ -36,14 +38,14 @@ describe("contract: GET /api/metrics", () => {
       },
     };
 
-    (head as any).mockResolvedValueOnce({ url: "http://localhost/blob/campanha-data.json" });
+    headMock.mockResolvedValueOnce({ url: "http://localhost/blob/campanha-data.json" });
     global.fetch = vi.fn().mockResolvedValueOnce(okJson(badPayload));
 
     const res = await metricsHandler();
     expect(res.status).toBe(400);
 
-    const json = await res.json();
+    const json = (await res.json()) as unknown as { error?: unknown };
     expect(json).toHaveProperty("error");
-    expect(String((json as any).error)).toContain("Coluna número da proposta não encontrada");
+    expect(String(json.error)).toContain("Coluna número da proposta não encontrada");
   });
 });
