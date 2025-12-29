@@ -29,7 +29,9 @@ describe("metrics/compute (cards-only)", () => {
     expect(shareSum).toBeCloseTo(1, 8);
 
     expect(payload.stores.length).toBeGreaterThan(0);
-    expect("firstPurchaseTicketAvg" in (payload.stores[0] as any)).toBe(false);
+    const firstStore = payload.stores[0];
+    if (!firstStore) throw new Error("Expected at least one store.");
+    expect("firstPurchaseTicketAvg" in firstStore).toBe(false);
 
     const byStore = new Map(payload.stores.map((s) => [s.store, s]));
     const loja16 = byStore.get("LOJA 16 — CERRO AZUL CENTRO");

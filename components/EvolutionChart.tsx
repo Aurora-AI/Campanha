@@ -10,12 +10,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
-type TooltipEnvelope = {
-  active?: boolean;
-  payload?: Array<{ payload?: unknown; value?: ValueType }>;
-  label?: NameType;
-};
+import type { TooltipContentProps } from 'recharts/types/component/Tooltip';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { ChartFrame } from '@/components/charts/ChartFrame';
 
 export type EvolutionPoint = {
@@ -42,13 +38,17 @@ const FALLBACK_DATA: EvolutionPoint[] = [
  * Custom tooltip: exibe dia e valor sem "espetáculo"
  * Respeita prefers-reduced-motion
  */
-function CustomTooltip({ active, payload }: TooltipEnvelope) {
+function CustomTooltip({ active, payload }: TooltipContentProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null;
 
-  const data = payload[0];
-  const row = data?.payload as EvolutionPoint | undefined;
+  const data = payload[0] as unknown as { payload?: unknown; value?: ValueType };
+  const row = data.payload as EvolutionPoint | undefined;
   if (!row) return null;
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const value = typeof data.value === 'number' ? data.value : row.value;
 
   return (
     <div
@@ -57,7 +57,7 @@ function CustomTooltip({ active, payload }: TooltipEnvelope) {
       }`}
     >
       <div className="font-medium">{row.day}</div>
-      <div className="text-black/60">Aprovados: {data.value}</div>
+      <div className="text-black/60">Aprovados: {value}</div>
     </div>
   );
 }
@@ -85,7 +85,7 @@ export default function EvolutionChart({
           />
           <YAxis tickLine={false} axisLine={false} width={28} />
           <Tooltip
-            content={<CustomTooltip />}
+            content={(props) => <CustomTooltip {...props} />}
             cursor={{ stroke: 'rgba(0,0,0,0.1)', strokeWidth: 1 }}
             contentStyle={{ background: 'transparent', border: 'none' }}
             wrapperStyle={{ outline: 'none' }}
