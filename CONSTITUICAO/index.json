@@ -11,19 +11,19 @@
       "id": "MANUAL_DE_CONSTRUCAO_MYCELIUM_FRONTEND_v1.0",
       "title": "Manual de Construção Mycelium — Frontend",
       "path": "CONSTITUICAO/MANUAL_DE_CONSTRUCAO_MYCELIUM_FRONTEND_v1.0.md",
-      "sha256": "1a49b3e7d971ccc7b5309715d8ef02e6a25c5d44a2e53bdb6335005dbe2e52fb"
+      "sha256": "5d1120480e4ef09a8027ae015083937d7c0f38a95dcce2faa8137717d9920e19"
     },
     {
       "id": "ADR-001-Instituicao-Manual-Frontend-Mycelium",
       "title": "ADR-001 — Instituição do Manual de Construção Mycelium (Frontend)",
       "path": "CONSTITUICAO/ADR-001-Instituicao-Manual-Frontend-Mycelium.md",
-      "sha256": "a67839464d41ed685ddcbcf1cb1422deeb0024b4cd83f9299d432f0c9bc57ba6"
+      "sha256": "edd0d7d3653f728cd3bb8678e9678d4327fada6699a75d51f4122a3958c7b831"
     },
     {
       "id": "GUIA_COMPLEMENTAR_COGNITIVE_PUZZLE",
       "title": "GUIA COMPLEMENTAR — ARQUITETURA COGNITIVE PUZZLE",
       "path": "CONSTITUICAO/GUIA_COMPLEMENTAR_COGNITIVE_PUZZLE.md",
-      "sha256": "6429ec381a719fe381835fa5ac38c31ed39f1d3e18f8845a4e1c884ba9e4f0ac"
+      "sha256": "07798cd3f5cad8d6095fbd086ccd237f21967df0e355d419ad9ee8e33981abed"
     }
   ]
 }
