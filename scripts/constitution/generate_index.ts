@@ -31,7 +31,9 @@ const CONSTITUTION_DIR = path.join(ROOT, 'CONSTITUICAO');
 const INDEX_PATH = path.join(CONSTITUTION_DIR, 'index.json');
 
 function sha256(buffer: Buffer): string {
-  return crypto.createHash('sha256').update(buffer).digest('hex');
+  // Normalize line endings so the hash is stable across OS checkouts (LF vs CRLF).
+  const normalized = buffer.toString('utf8').replace(/\r\n/g, '\n');
+  return crypto.createHash('sha256').update(Buffer.from(normalized, 'utf8')).digest('hex');
 }
 
 function titleFromMarkdown(content: string, fallback: string): string {

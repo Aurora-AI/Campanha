@@ -23,11 +23,30 @@ function sum(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0);
 }
 
-function getDayKeys(tz: string) {
-  const now = DateTime.now().setZone(tz);
-  const yesterday = now.minus({ days: 1 }).toISODate();
-  const dayBefore = now.minus({ days: 2 }).toISODate();
-  return { yesterday: yesterday || '', dayBefore: dayBefore || '' };
+function resolveReferenceDayKeys(options: {
+  tz: string;
+  proposals: ProposalFact[];
+  useFinalized: boolean;
+}): { day: string; dayBefore: string } {
+  const { tz, proposals, useFinalized } = options;
+
+  let maxISO: string | null = null;
+  for (const p of proposals) {
+    const iso = pickDateForApproval(p, useFinalized);
+    if (!iso) continue;
+    const dt = DateTime.fromISO(iso, { zone: tz }).startOf('day');
+    if (!dt.isValid) continue;
+    const key = dt.toISODate();
+    if (!key) continue;
+    if (!maxISO || key > maxISO) maxISO = key;
+  }
+
+  const ref = (maxISO ? DateTime.fromISO(maxISO, { zone: tz }) : DateTime.now().setZone(tz).minus({ days: 1 }))
+    .startOf('day');
+
+  const day = ref.toISODate() ?? '';
+  const dayBefore = ref.minus({ days: 1 }).toISODate() ?? '';
+  return { day, dayBefore };
 }
 
 function buildComparatives(
@@ -63,7 +82,7 @@ export function computeSnapshot(proposals: ProposalFact[]): Snapshot {
   const tz = cfg.timezone;
   const useFinalized = cfg.useFinalizedDateForApprovals;
 
-  const { yesterday, dayBefore } = getDayKeys(tz);
+  const { day: yesterday, dayBefore } = resolveReferenceDayKeys({ tz, proposals, useFinalized });
 
   const approvedTotal = sum(proposals.map((p) => p.approved));
   const submittedTotal = proposals.length;
