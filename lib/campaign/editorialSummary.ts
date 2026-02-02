@@ -74,6 +74,55 @@ function approvalDateISO(p: ProposalFact, useFinalized: boolean): string | null 
   return useFinalized ? p.finalizedDateISO ?? p.entryDateISO : p.entryDateISO;
 }
 
+function resolveEffectiveCampaignWindow(options: {
+  proposals: ProposalFact[];
+  tz: string;
+  useFinalized: boolean;
+  configStart: DateTime;
+  configEnd: DateTime;
+}): { campaignStart: DateTime; campaignEnd: DateTime; referenceDayFromData: DateTime | null } {
+  const { proposals, tz, useFinalized, configStart, configEnd } = options;
+
+  let maxOverall: DateTime | null = null;
+  let maxWithinConfig: DateTime | null = null;
+  let hasAnyWithinConfig = false;
+
+  for (const p of proposals) {
+    const iso = approvalDateISO(p, useFinalized);
+    if (!iso) continue;
+    const dt = toDateTime(iso, tz);
+    if (!dt) continue;
+
+    if (!maxOverall || dt > maxOverall) maxOverall = dt;
+    if (dt >= configStart && dt <= configEnd) {
+      hasAnyWithinConfig = true;
+      if (!maxWithinConfig || dt > maxWithinConfig) maxWithinConfig = dt;
+    }
+  }
+
+  if (hasAnyWithinConfig) {
+    return {
+      campaignStart: configStart,
+      campaignEnd: configEnd,
+      referenceDayFromData: maxWithinConfig,
+    };
+  }
+
+  if (maxOverall) {
+    return {
+      campaignStart: maxOverall.startOf('month'),
+      campaignEnd: maxOverall.endOf('month'),
+      referenceDayFromData: maxOverall,
+    };
+  }
+
+  return {
+    campaignStart: configStart,
+    campaignEnd: configEnd,
+    referenceDayFromData: null,
+  };
+}
+
 function dailyTarget(weeklyTarget: number, approvedToYesterday: number, daysRemaining: number): number {
   if (daysRemaining <= 0) return 0;
   const raw = (weeklyTarget - approvedToYesterday) / daysRemaining;
@@ -141,13 +190,10 @@ export function buildEditorialSummaryPayload({
 }: BuildEditorialSummaryOptions): EditorialSummaryPayload {
   const tz = config.timezone;
   const current = (now ?? DateTime.now()).setZone(tz);
-  const today = current.startOf('day');
-  const yesterday = today.minus({ days: 1 });
-  const weekStart = startOfWeek(today, config.weekStartsOn);
-  const weekEnd = weekStart.plus({ days: 6 }).startOf('day');
+  const fallbackReferenceDay = current.startOf('day').minus({ days: 1 });
 
-  const campaignStart = DateTime.fromISO(config.campaignStartISO, { zone: tz }).startOf('day');
-  const campaignEnd = DateTime.fromISO(config.campaignEndISO, { zone: tz }).endOf('day');
+  const campaignStartConfig = DateTime.fromISO(config.campaignStartISO, { zone: tz }).startOf('day');
+  const campaignEndConfig = DateTime.fromISO(config.campaignEndISO, { zone: tz }).endOf('day');
 
   const fallbackSummary: EditorialSummaryPayload = {
     updatedAtISO: new Date().toISOString(),
@@ -227,7 +273,21 @@ export function buildEditorialSummaryPayload({
   const storeMetrics = Array.isArray(snapshotObj.storeMetrics) ? (snapshotObj.storeMetrics as StoreMetrics[]) : [];
   const useFinalized = config.useFinalizedDateForApprovals;
 
-  const yesterdayKey = yesterday.toISODate() ?? '-';
+  const { campaignStart, campaignEnd, referenceDayFromData } = resolveEffectiveCampaignWindow({
+    proposals,
+    tz,
+    useFinalized,
+    configStart: campaignStartConfig,
+    configEnd: campaignEndConfig,
+  });
+
+  const referenceDay = (referenceDayFromData ?? fallbackReferenceDay).startOf('day');
+  const yesterdayKey = referenceDay.toISODate() ?? '-';
+
+  const weekStart = startOfWeek(referenceDay, config.weekStartsOn);
+  const weekEnd = weekStart.plus({ days: 6 }).startOf('day');
+  const prevDay = referenceDay.minus({ days: 1 }).startOf('day');
+
   let approvedYesterday = 0;
   let approvedWeekToYesterday = 0;
   const approvedByDay = new Map<string, number>();
@@ -246,7 +306,7 @@ export function buildEditorialSummaryPayload({
     }
 
     if (key === yesterdayKey) approvedYesterday += p.approved ?? 0;
-    if (dt >= weekStart && dt <= yesterday) approvedWeekToYesterday += p.approved ?? 0;
+    if (dt >= weekStart && dt <= prevDay) approvedWeekToYesterday += p.approved ?? 0;
 
     const store = p.store;
     if (!store) continue;
@@ -258,11 +318,11 @@ export function buildEditorialSummaryPayload({
       approvedWeekToYesterday: 0,
     };
     if (key === yesterdayKey) existing.approvedYesterday += p.approved ?? 0;
-    if (dt >= weekStart && dt <= yesterday) existing.approvedWeekToYesterday += p.approved ?? 0;
+    if (dt >= weekStart && dt <= prevDay) existing.approvedWeekToYesterday += p.approved ?? 0;
     storeStats.set(store, existing);
   }
 
-  const daysRemaining = Math.max(1, Math.floor(weekEnd.diff(today, 'days').days) + 1);
+  const daysRemaining = Math.max(1, Math.floor(weekEnd.diff(referenceDay, 'days').days) + 1);
   const weeklyTarget = weeklyTargetTotal(config);
   const targetToday = dailyTarget(weeklyTarget, approvedWeekToYesterday, daysRemaining);
   const dayRatio = targetToday > 0 ? approvedYesterday / targetToday : 1;
@@ -337,7 +397,7 @@ export function buildEditorialSummaryPayload({
         .sort((a, b) => b.dayRatio - a.dayRatio || b.approvedYesterday - a.approvedYesterday)[0] ?? storeResults[0]
     : undefined;
 
-  const campaignTrendEnd = DateTime.min(yesterday, campaignEnd.startOf('day'));
+  const campaignTrendEnd = DateTime.min(referenceDay, campaignEnd.startOf('day'));
   const campaignTrendPoints =
     campaignStart <= campaignTrendEnd
       ? buildCampaignTrend({

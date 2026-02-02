@@ -3,6 +3,9 @@
 @theme inline {
   --font-sans: var(--font-inter);
   --font-serif: var(--font-playfair);
+  --color-exo-black: #050505;
+  --color-exo-white: #FFFFFF;
+  --color-exo-gray: #999999;
 }
 
 @layer base {
