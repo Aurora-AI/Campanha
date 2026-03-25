@@ -11,6 +11,8 @@ export type ProposalFact = {
   finalizedDateISO: string | null;
   approved: 0 | 1;
   rejected: 0 | 1;
+  promoterName: string | null;
+  promoterProfile: string | null;
 };
 
 export type StoreMetrics = {

@@ -60,6 +60,8 @@ export function normalizeProposals(
 
     const statusRaw = firstValue(r, ['situacao', 'status']);
     const status = normalizeStatus(statusRaw);
+    const promoterName = firstValue(r, ['nome promotor', 'promotor', 'nome do promotor']) || null;
+    const promoterProfile = firstValue(r, ['perfil promotor', 'perfil do promotor', 'cargo promotor']) || null;
 
     const entryISO = parsePtBrDateToISODate(firstValue(r, entryKeys), tz) ?? null;
     const finISO = parsePtBrDateToISODate(firstValue(r, ['data finalizada', 'data finalizada em', 'data finalizada']), tz);
@@ -78,6 +80,8 @@ export function normalizeProposals(
       finalizedDateISO: finISO ?? null,
       approved,
       rejected,
+      promoterName,
+      promoterProfile,
     });
   }
 
